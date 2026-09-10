@@ -1,0 +1,4 @@
+project_id = "madrasetna"
+[functions.manage-student]
+verify_jwt = false
+
