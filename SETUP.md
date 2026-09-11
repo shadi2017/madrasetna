@@ -4,7 +4,7 @@
 أنشئ مشروعًا جديدًا مخصصًا للتطبيق داخل الخطة Free، واحتفظ بكلمة مرور قاعدة البيانات عندك.
 
 1. من SQL Editor افتح New query والصق محتوى supabase/migrations/001_initial.sql ثم Run. الملف مخصص **لمشروع جديد** ويُشغّل مرة واحدة. بعدها شغّل supabase/migrations/002_registration_grading.sql مرة واحدة. لو طبقت 001 قبل كده، شغّل 002 فقط.
-2. من Authentication → Providers/Sign In فعّل السماح بالتسجيل العام (Allow new users to sign up). ومن Email أوقف Confirm email لأن دخول الطلاب باسم مستخدم بعناوين داخلية لا تستقبل البريد. اجعل Minimum password length = 10. التفعيل الحقيقي يتم من الأدمن داخل التطبيق، وليس من بيانات يرسلها الطالب.
+2. من Authentication → Providers/Sign In فعّل السماح بالتسجيل العام (Allow new users to sign up). ومن Email أوقف Confirm email لأن دخول الطلاب باسم مستخدم بعناوين داخلية لا تستقبل البريد. اجعل Minimum password length = 6. التفعيل الحقيقي يتم من الأدمن داخل التطبيق، وليس من بيانات يرسلها الطالب.
 3. من Authentication → Users أضف حسابك كأول أدمن ببريدك وكلمة مرور قوية، وفعّل تأكيد البريد.
 4. شغّل supabase/bootstrap-admin.sql بعد استبدال البريد التجريبي ببريدك. لا يوجد باسورد أدمن افتراضي داخل المشروع.
 5. من Project Settings → API احصل على Project URL وPublishable key أو anon public key.

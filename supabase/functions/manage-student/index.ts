@@ -17,7 +17,7 @@ Deno.serve(async req => {
  if(roleError||role!==true)return reply({error:'ADMIN_REQUIRED'},403);
  const text=await req.text();if(text.length>10000)return reply({error:'REQUEST_TOO_LARGE'},413);
  const b=JSON.parse(text);
- if(typeof b.password!=='string'||b.password.length<10||b.password.length>128)return reply({error:'PASSWORD_LENGTH'},400);
+ if(typeof b.password!=='string'||b.password.length<6||b.password.length>128)return reply({error:'PASSWORD_LENGTH'},400);
  if(b.action==='create'){
   if(!/^[a-z0-9_]{3,32}$/.test(b.username||'')||typeof b.name!=='string'||b.name.trim().length<2||b.name.length>100||!/^\+?[0-9]{8,15}$/.test(b.phone||''))return reply({error:'INVALID_STUDENT'},400);
   const {data:created,error}=await admin.auth.admin.createUser({email:b.username+'@students.invalid',password:b.password,email_confirm:true});
