@@ -1,0 +1,21 @@
+import {PGlite} from '@electric-sql/pglite';
+import {readFile} from 'node:fs/promises';
+import assert from 'node:assert/strict';
+const db=new PGlite();
+await db.exec(`create role anon;create role authenticated;create schema auth;create table auth.users(id uuid primary key,email text,raw_user_meta_data jsonb default '{}');create function auth.uid() returns uuid language sql stable as $$ select null::uuid $$;`);
+async function migrate(file){const sql=(await readFile(new URL('../supabase/migrations/'+file,import.meta.url),'utf8')).replace('create extension if not exists pgcrypto;','').replace(/alter publication supabase_realtime add table[^;]+;/g,'');await db.exec(sql)}
+await migrate('001_initial.sql');
+const id='10000000-0000-4000-8000-000000000001';
+await db.query('insert into auth.users(id) values($1)',[id]);
+await db.query("insert into profiles(id,username,full_name,phone) values($1,'old_student','طالب قديم','01012345678')",[id]);
+await db.exec("insert into days(label) select 'اليوم '||n from generate_series(1,12) n");
+await db.query(`insert into evaluations(student_id,day_id,scores) select $1,id,'{"quiz":7,"competition":10,"project":5}'::jsonb from days`,[id]);
+await migrate('002_registration_grading.sql');
+const profile=(await db.query('select status from profiles')).rows[0];
+const final=(await db.query('select competition,project from final_scores')).rows[0];
+const config=(await db.query('select config from grading')).rows[0].config;
+assert.equal(profile.status,'active');assert.equal(Number(final.competition),120);assert.equal(Number(final.project),60);assert.equal(config.competition_max,120);assert.equal(config.project_max,120);
+assert.equal(Number((await db.query("select sum((scores->>'competition')::numeric) n from evaluations")).rows[0].n),120);
+assert.equal((await db.query('select results_published from grading')).rows[0].results_published,false);
+console.log('PASS: upgrading existing students preserves legacy competition/project scores and hides results.');
+await db.close();

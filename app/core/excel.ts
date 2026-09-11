@@ -1,28 +1,33 @@
-import { Data, categories, validStudent } from './model';
+import { Data, categories, validStudent, validConfig, active } from './model';
 export type ImportRow = {
     sheet: string;
     row: number;
     values: Record<string, string | number | boolean>;
     error?: string;
 };
-const specs: Record<string, [
+const specs = (data: Data): Record<string, [
     string,
     string
-][]> = {
-    'الطلاب': [['id', 'المعرف'], ['version', 'الإصدار'], ['username', 'اسم المستخدم'], ['full_name', 'الاسم'], ['phone', 'الموبايل'], ['deleted_at', 'تاريخ الحذف'], ['qr_token', 'رمز QR']],
+][]> => ({
+    'الطلاب': [['id', 'المعرف'], ['version', 'الإصدار'], ['username', 'اسم المستخدم'], ['full_name', 'الاسم'], ['phone', 'الموبايل'], ['deleted_at', 'تاريخ الحذف'], ['qr_token', 'رمز QR'], ['status', 'حالة الحساب']],
     'الأيام': [['id', 'المعرف'], ['version', 'الإصدار'], ['label', 'اليوم'], ['date', 'التاريخ'], ['deleted_at', 'تاريخ الحذف']],
     'التقييمات': [['id', 'المعرف'], ['version', 'الإصدار'], ['student_id', 'معرف الطالب'], ['day_id', 'معرف اليوم'], ['present', 'حاضر'], ...categories.map(([k, l]) => [k, l] as [
             string,
             string
         ]), ['notes', 'ملاحظات'], ['deleted_at', 'تاريخ الحذف']],
-    'الإعدادات': [['name', 'الاسم'], ['slogan', 'الشعار'], ['verse', 'الآية'], ['version', 'الإصدار']]
-};
+    'الإعدادات': [['name', 'الاسم'], ['slogan', 'الشعار'], ['verse', 'الآية'], ['version', 'الإصدار']],
+    'الدرجات المستقلة': [['id', 'المعرف'], ['version', 'الإصدار'], ['student_id', 'معرف الطالب'], ...data.grading.config.parts.map((p, i) => ['part_' + p.id, 'حفظ ' + (i + 1) + ' · ' + p.label] as [
+            string,
+            string
+        ]), ['competition', 'المسابقة'], ['project', 'المشروع'], ['notes', 'ملاحظات'], ['deleted_at', 'تاريخ الحذف']],
+    'نظام الدرجات': [['config', 'الإعدادات JSON'], ['version', 'الإصدار']]
+});
 export async function downloadWorkbook(data: Data, audit = data.audit, template = false) {
     const { default: ExcelJS } = await import('exceljs');
     const wb = new ExcelJS.Workbook();
     wb.creator = 'مدرستنا';
-    const records: Record<string, Record<string, unknown>[]> = { 'الطلاب': data.students, 'الأيام': data.days, 'التقييمات': data.evaluations.map(e => ({ ...e, ...e.scores })), 'الإعدادات': [data.settings] };
-    for (const [name, columns] of Object.entries(specs)) {
+    const records: Record<string, Record<string, unknown>[]> = { 'الطلاب': data.students, 'الأيام': data.days, 'التقييمات': data.evaluations.map(e => ({ ...e, ...e.scores })), 'الإعدادات': [data.settings], 'الدرجات المستقلة': data.finals.map(f => ({ ...f, ...Object.fromEntries(Object.entries(f.part_scores).map(([k, v]) => ['part_' + k, v])) })), 'نظام الدرجات': [{ config: JSON.stringify(data.grading.config), version: data.grading.version }] };
+    for (const [name, columns] of Object.entries(specs(data))) {
         const sheet = wb.addWorksheet(name, { views: [{ rightToLeft: true, state: 'frozen', ySplit: 1 }] });
         sheet.columns = columns.map(([key, header]) => ({ key, header, width: key === 'full_name' || key === 'verse' ? 32 : 22 }));
         if (!template)
@@ -33,6 +38,9 @@ export async function downloadWorkbook(data: Data, audit = data.audit, template 
         sheet.autoFilter = { from: { row: 1, column: 1 }, to: { row: 1, column: columns.length } };
     }
     if (!template) {
+        const results = wb.addWorksheet('النتائج والترتيب', { views: [{ rightToLeft: true }] });
+        results.columns = [{ key: 'name', header: 'الطالب', width: 30 }, { key: 'daily', header: 'اليومي', width: 18 }, { key: 'parts', header: 'أجزاء الحفظ', width: 18 }, { key: 'competition', header: 'المسابقة', width: 18 }, { key: 'project', header: 'المشروع', width: 18 }, { key: 'points', header: 'المجموع النهائي', width: 20 }, { key: 'max', header: 'من', width: 16 }, { key: 'rank', header: 'الترتيب', width: 16 }];
+        data.results.forEach(r => results.addRow({ ...r, name: data.students.find(s => s.id === r.student_id)?.full_name }));
         const history = wb.addWorksheet('السجل', { views: [{ rightToLeft: true }] });
         history.columns = [{ header: 'الوقت', key: 'created_at', width: 25 }, { header: 'العملية', key: 'action', width: 20 }, { header: 'النوع', key: 'entity', width: 20 }, { header: 'المعرف', key: 'record_id', width: 38 }, { header: 'الأدمن', key: 'actor_id', width: 38 }, { header: 'قبل', key: 'before', width: 60 }, { header: 'بعد', key: 'after', width: 60 }];
         for (const a of audit) {
@@ -46,7 +54,7 @@ export async function downloadWorkbook(data: Data, audit = data.audit, template 
     }
     const help = wb.addWorksheet('تعليمات');
     help.getColumn(1).width = 110;
-    ['استخدم ملف القالب لإضافة بيانات جديدة، أو عدل نسخة التصدير لتحديث السجلات.', 'الطلاب: الاسم والموبايل واسم المستخدم مطلوبون. احتفظ بصفر الموبايل الأول واستخدم تنسيق نص.', 'اسم المستخدم: حروف إنجليزية صغيرة وأرقام وشرطة سفلية فقط، من 3 إلى 32 حرفًا.', 'للسجلات الجديدة اترك المعرف والإصدار فارغين. لتعديل سجل موجود احتفظ بالمعرف والإصدار الحالي.', 'التقييمات: استخدم معرف الطالب ومعرف اليوم من ورقتيهما. كل درجة من صفر إلى 10، وحاضر TRUE أو FALSE.', 'أيام الدراسة: التاريخ بصيغة YYYY-MM-DD، أو اتركه فارغًا.', 'تاريخ الحذف: فارغ للسجلات النشطة، أو تاريخ ISO للسجلات المحذوفة. استرجع المحذوفات من التطبيق أولًا.', 'حساب الطالب الجديد يحصل على كلمة مرور مولدة وقت الاستيراد وتظهر في كشف منفصل.', 'رمز QR والمعرف واسم مستخدم الحساب الموجود والسجل للتصدير والربط؛ لا يتم تغييرها بالاستيراد.', 'يتم الاستيراد صفًا بصف. يظهر تقرير النجاح والفشل لتصحيح الصفوف المتبقية.', 'الحد: 500 صف لكل استيراد، وحجم الملف 5 ميجابايت. السجل للتصدير فقط.'].forEach(x => help.addRow([x]));
+    ['استخدم ملف القالب لإضافة بيانات جديدة، أو عدل نسخة التصدير لتحديث السجلات.', 'الطلاب: الاسم والموبايل واسم المستخدم مطلوبون. احتفظ بصفر الموبايل الأول واستخدم تنسيق نص.', 'اسم المستخدم: حروف إنجليزية صغيرة وأرقام وشرطة سفلية فقط، من 3 إلى 32 حرفًا.', 'للسجلات الجديدة اترك المعرف والإصدار فارغين. لتعديل سجل موجود احتفظ بالمعرف والإصدار الحالي.', 'التقييمات: استخدم معرف الطالب ومعرف اليوم من ورقتيهما. كل درجة حسب النهاية المحددة في نظام الدرجات، وحاضر TRUE أو FALSE.', 'أيام الدراسة: التاريخ بصيغة YYYY-MM-DD، أو اتركه فارغًا.', 'تاريخ الحذف: فارغ للسجلات النشطة، أو تاريخ ISO للسجلات المحذوفة. استرجع المحذوفات من التطبيق أولًا.', 'حساب الطالب الجديد يحصل على كلمة مرور مولدة وقت الاستيراد وتظهر في كشف منفصل.', 'رمز QR والمعرف واسم مستخدم الحساب الموجود والسجل للتصدير والربط؛ لا يتم تغييرها بالاستيراد.', 'يتم الاستيراد صفًا بصف. يظهر تقرير النجاح والفشل لتصحيح الصفوف المتبقية.', 'الحد: 500 صف لكل استيراد، وحجم الملف 5 ميجابايت. السجل للتصدير فقط.'].forEach(x => help.addRow([x]));
     const buffer = await wb.xlsx.writeBuffer();
     saveBlob(new Blob([buffer as BlobPart], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }), template ? 'قالب-مدرستنا.xlsx' : 'مدرستنا-' + new Date().toISOString().slice(0, 10) + '.xlsx');
 }
@@ -61,23 +69,32 @@ export async function parseWorkbook(file: File, data: Data): Promise<ImportRow[]
     const seen = new Set<string>();
     const dates = new Set<string>();
     let settingsCount = 0;
-    for (const [name, columns] of Object.entries(specs)) {
+    let gradingCount = 0;
+    for (const [name, columns] of Object.entries(specs(data))) {
         const sheet = wb.getWorksheet(name);
         if (!sheet)
             continue;
         const headers = new Map<number, string>();
-        sheet.getRow(1).eachCell((cell, index) => { const match = columns.find(([key, label]) => cell.text === label || cell.text === key); if (match)
-            headers.set(index, match[0]); });
+        sheet.getRow(1).eachCell((cell, index) => {
+            const match = columns.find(([key, label]) => cell.text === label || cell.text === key);
+            if (match)
+                headers.set(index, match[0]);
+        });
         sheet.eachRow((row, index) => {
             if (index === 1)
                 return;
             const values: ImportRow['values'] = {};
             let error = '';
-            row.eachCell((cell, col) => { const key = headers.get(col); if (!key)
-                return; if (cell.type === ExcelJS.ValueType.Formula) {
-                error = 'الصيغ غير مقبولة؛ استخدم قيمًا ثابتة.';
-                return;
-            } values[key] = cell.value instanceof Date ? cell.value.toISOString().slice(0, 10) : typeof cell.value === 'number' || typeof cell.value === 'boolean' ? cell.value : cell.text.trim(); });
+            row.eachCell((cell, col) => {
+                const key = headers.get(col);
+                if (!key)
+                    return;
+                if (cell.type === ExcelJS.ValueType.Formula) {
+                    error = 'الصيغ غير مقبولة؛ استخدم قيمًا ثابتة.';
+                    return;
+                }
+                values[key] = cell.value instanceof Date ? cell.value.toISOString().slice(0, 10) : typeof cell.value === 'number' || typeof cell.value === 'boolean' ? cell.value : cell.text.trim();
+            });
             if (!Object.values(values).some(v => v !== ''))
                 return;
             const str = (k: string) => String(values[k] ?? '');
@@ -116,12 +133,12 @@ export async function parseWorkbook(file: File, data: Data): Promise<ImportRow[]
                 }
             }
             if (name === 'التقييمات') {
-                if (!data.students.some(s => s.id === str('student_id') && !s.deleted_at) || !data.days.some(d => d.id === str('day_id') && !d.deleted_at))
+                if (!data.students.some(s => s.id === str('student_id') && active(s)) || !data.days.some(d => d.id === str('day_id') && !d.deleted_at))
                     error = 'معرف الطالب أو اليوم غير موجود؛ استورد الطلاب والأيام أولًا ثم صدّر المعرفات.';
                 for (const [k] of categories) {
                     const n = Number(values[k] ?? 0);
-                    if (!Number.isFinite(n) || n < 0 || n > 10)
-                        error = 'كل درجة لازم تكون رقمًا من صفر إلى 10.';
+                    if (!Number.isFinite(n) || n < 0 || n > data.grading.config.daily_max[k])
+                        error = 'كل درجة لازم تكون ضمن النهاية المحددة في نظام الدرجات.';
                     values[k] = n;
                 }
                 const p = str('present').toLowerCase();
@@ -139,6 +156,44 @@ export async function parseWorkbook(file: File, data: Data): Promise<ImportRow[]
                 seen.add(duplicate);
                 if (str('notes').length > 2000)
                     error = 'الملاحظات أطول من 2000 حرف.';
+            }
+            if (name === 'الدرجات المستقلة') {
+                if (!data.students.some(s => s.id === str('student_id') && active(s)))
+                    error = 'الطالب غير موجود أو غير مفعل.';
+                const old = data.finals.find(f => f.student_id === str('student_id'));
+                if (old && (old.id !== id || old.version !== version || old.deleted_at))
+                    error = 'استخدم معرف وإصدار الدرجات من تصدير حديث واسترجع المحذوف أولًا.';
+                if (!old && id)
+                    error = 'المعرف غير موجود. اتركه فارغًا للدرجات الجديدة.';
+                const duplicate = 'final:' + str('student_id');
+                if (seen.has(duplicate))
+                    error = 'درجات الطالب المستقلة مكررة.';
+                seen.add(duplicate);
+                const limits = [...data.grading.config.parts.map(p => ['part_' + p.id, p.max] as [
+                        string,
+                        number
+                    ]), ['competition', data.grading.config.competition_max], ['project', data.grading.config.project_max]] as [
+                    string,
+                    number
+                ][];
+                for (const [key, max] of limits) {
+                    const n = Number(values[key] || 0);
+                    if (!Number.isFinite(n) || n < 0 || n > max)
+                        error = 'درجة خارج النهاية المحددة.';
+                    values[key] = n;
+                }
+                if (str('notes').length > 2000)
+                    error = 'الملاحظات أطول من 2000 حرف.';
+            }
+            if (name === 'نظام الدرجات') {
+                gradingCount++;
+                try {
+                    if (gradingCount > 1 || !validConfig(JSON.parse(str('config'))) || version !== data.grading.version)
+                        error = 'راجع إعدادات المعادلة والإصدار. يسمح بصف واحد فقط.';
+                }
+                catch {
+                    error = 'إعدادات المعادلة غير صالحة.';
+                }
             }
             if (name === 'الإعدادات') {
                 settingsCount++;
@@ -161,8 +216,10 @@ export async function parseWorkbook(file: File, data: Data): Promise<ImportRow[]
     const logoSheet = wb.getWorksheet('اللوجو');
     if (logoSheet) {
         let logo = '';
-        logoSheet.eachRow((r, i) => { if (i > 1)
-            logo += r.getCell(2).text; });
+        logoSheet.eachRow((r, i) => {
+            if (i > 1)
+                logo += r.getCell(2).text;
+        });
         const setting = rows.find(r => r.sheet === 'الإعدادات');
         if (setting) {
             if (logo.length > 400000 || (logo && !/^data:image\/(png|jpeg|webp);base64,/.test(logo)))
