@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Camera, Download, ScanLine, Square, Share2 } from 'lucide-react';
 import QRCode from 'qrcode';
+import { toast } from 'sonner';
 import type { Html5Qrcode } from 'html5-qrcode';
 import { Student, parseQr, safeError } from '../core/model';
 export function QrCard({ student, school }: {
@@ -57,6 +58,8 @@ export function Scanner({ onScan, disabled }: {
         try {
             const res = await callback.current(parseQr(value));
             if (mounted.current) {
+                toast[res.duplicate ? 'info' : 'success'](res.duplicate ? 'الحضور مسجل بالفعل' : 'تم التسجيل بنجاح', {description: res.name + ' — ' + (res.duplicate ? 'لم تتغير درجات الطالب' : res.discipline_awarded ? 'حضور + 10 درجات التزام' : 'حضور فقط'), duration: 3500});
+                navigator.vibrate?.(100);
                 setResult(res);
                 setMessage('');
             }
@@ -64,6 +67,7 @@ export function Scanner({ onScan, disabled }: {
         catch (e) {
             if (mounted.current) {
                 setResult(null);
+                toast.error(safeError(e));
                 setMessage(safeError(e));
             }
         }

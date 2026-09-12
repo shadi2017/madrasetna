@@ -15,7 +15,7 @@ const specs = (data: Data): Record<string, [
             string,
             string
         ]), ['notes', 'ملاحظات'], ['deleted_at', 'تاريخ الحذف']],
-    'الإعدادات': [['name', 'الاسم'], ['slogan', 'الشعار'], ['verse', 'الآية'], ['version', 'الإصدار']],
+    'الإعدادات': [['name', 'الاسم'], ['slogan', 'الشعار'], ['verse', 'الآية'], ['login_tagline', 'عبارة الدخول'], ['login_title', 'عنوان الدخول'], ['version', 'الإصدار']],
     'الدرجات المستقلة': [['id', 'المعرف'], ['version', 'الإصدار'], ['student_id', 'معرف الطالب'], ...data.grading.config.parts.map((p, i) => ['part_' + p.id, 'حفظ ' + (i + 1) + ' · ' + p.label] as [
             string,
             string
@@ -141,6 +141,7 @@ export async function parseWorkbook(file: File, data: Data): Promise<ImportRow[]
                     const n = Number(values[k] ?? 0);
                     if (!Number.isFinite(n) || n < 0 || n > data.grading.config.daily_max[k])
                         error = 'كل درجة لازم تكون ضمن النهاية المحددة في نظام الدرجات.';
+                    if(k!=='quiz' && n!==0 && n!==10) error = 'التقييم اليومي 0 أو 10 فقط، ما عدا الكويز.';
                     values[k] = n;
                 }
                 const p = str('present').toLowerCase();

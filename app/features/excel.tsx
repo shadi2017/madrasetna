@@ -61,7 +61,7 @@ export function ExcelPanel({ data, busy, demo, mutate, account }: {
                 if (item.sheet === 'نظام الدرجات')
                     await mutate('save_grading', { p_config: JSON.parse(str('config')), p_published: data.grading.results_published, p_version: Number(v.version) }, true);
                 if (item.sheet === 'الإعدادات')
-                    await mutate('save_settings', { p_name: v.name, p_slogan: v.slogan || '', p_verse: v.verse || '', p_logo: v.logo ?? data.settings.logo, p_version: Number(v.version) }, true);
+                    await mutate('save_settings_v2', { p_login_tagline: v.login_tagline ?? data.settings.login_tagline ?? 'كل طالب له مكان', p_login_title: v.login_title ?? data.settings.login_title ?? 'أيام بنعيشها.\nوخطوات بنكبرها.', p_name: v.name, p_slogan: v.slogan || '', p_verse: v.verse || '', p_logo: v.logo ?? data.settings.logo, p_version: Number(v.version) }, true);
                 results.push('✓ ' + item.sheet + ' · صف ' + item.row + ' — تم الحفظ');
             }
             catch (e) {

@@ -28,15 +28,15 @@ export function demoRpc(data: Data, name: string, a: Record<string, any>) {
             entity = 'days';
         }
     }
-    else if (name === 'save_settings') {
+    else if ((name === 'save_settings' || name === 'save_settings_v2')) {
         if (next.settings.version !== a.p_version)
             throw Error('CONFLICT_REFRESH');
         before = structuredClone(next.settings);
-        Object.assign(next.settings, { name: a.p_name, slogan: a.p_slogan, verse: a.p_verse, logo: a.p_logo, version: next.settings.version + 1 });
+        Object.assign(next.settings, { login_title: a.p_login_title ?? next.settings.login_title, login_tagline: a.p_login_tagline ?? next.settings.login_tagline, name: a.p_name, slogan: a.p_slogan, verse: a.p_verse, logo: a.p_logo, version: next.settings.version + 1 });
         after = next.settings;
         entity = 'settings';
     }
-    else if ((name === 'save_grading' || name === 'save_grading_v2')) {
+    else if ((name === 'save_grading' || name === 'save_grading_v2' || name === 'save_grading_config')) {
         const c = a.p_config;
         if (!validConfig(c))
             throw Error('INVALID_CONFIG');
@@ -45,11 +45,12 @@ export function demoRpc(data: Data, name: string, a: Record<string, any>) {
         if (next.evaluations.some(e => categories.some(([k]) => (e.scores[k] || 0) > c.daily_max[k])) || next.finals.some(f => f.competition > c.competition_max || f.project > c.project_max || Object.entries(f.part_scores).some(([k, v]) => v > (c.parts.find((p: any) => p.id === k)?.max || 0))))
             throw Error('CONFIG_BELOW_EXISTING');
         before = structuredClone(next.grading);
-        next.grading = { ...next.grading, config: c, results_published: a.p_published, competition_published: a.p_competition_published ?? next.grading.competition_published, project_published: a.p_project_published ?? next.grading.project_published, version: next.grading.version + 1, updated_at: now };
+        next.grading = { ...next.grading, config: c, results_published: a.p_published ?? next.grading.results_published, competition_published: a.p_competition_published ?? next.grading.competition_published, project_published: a.p_project_published ?? next.grading.project_published, version: next.grading.version + 1, updated_at: now };
         after = next.grading;
         entity = 'grading';
         result = next.grading;
     }
+    else if(name==='set_publication'){if(a.p_version!==next.grading.version)throw Error('CONFLICT_REFRESH');next.grading={...next.grading,[a.p_field]:a.p_value,version:next.grading.version+1};result=next.grading;}
     else if (name === 'save_final_scores') {
         if (!next.students.some(s => s.id === a.p_student && active(s)))
             throw Error('STUDENT_NOT_FOUND');
