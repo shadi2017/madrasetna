@@ -6,17 +6,27 @@ Deno.serve(async req => {
  if(req.method!=='POST')return reply({error:'METHOD_NOT_ALLOWED'},405);
  try{
  const url=Deno.env.get('SUPABASE_URL')!, service=Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!, anon=Deno.env.get('SUPABASE_ANON_KEY')!;
+ const text=await req.text();if(text.length>10000)return reply({error:'REQUEST_TOO_LARGE'},413);
+ const b=JSON.parse(text);
  const authorization=req.headers.get('Authorization')||'';
  const token=authorization.replace(/^Bearer /i,'');
  const admin=createClient(url,service,{auth:{persistSession:false}});
+ if(b.action==='recover_admin'){
+  const generic={ok:true};
+  if(typeof b.email!=='string'||b.email.length>254||! /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(b.email))return reply(generic);
+  const {data:email,error:reserveError}=await admin.rpc('reserve_admin_recovery',{p_email:b.email.trim().toLowerCase()});
+  if(reserveError)return reply({error:'RECOVERY_UNAVAILABLE'},503);
+  if(email){const {error}=await admin.auth.resetPasswordForEmail(email,{redirectTo:'https://shadi2017.github.io/madrasetna/'});
+   if(error){console.error('Admin recovery delivery failed',error.code||error.status);return reply({error:'RECOVERY_UNAVAILABLE'},503);}}
+  return reply(generic);
+ }
  // Verify every request against Auth; a decoded JWT is never trusted on its own.
  const {data:identity,error:authError}=await admin.auth.getUser(token);
  if(authError||!identity.user)return reply({error:'UNAUTHORIZED'},401);
  const user=createClient(url,anon,{global:{headers:{Authorization:authorization}},auth:{persistSession:false}});
  const {data:role,error:roleError}=await user.rpc('is_admin');
  if(roleError||role!==true)return reply({error:'ADMIN_REQUIRED'},403);
- const text=await req.text();if(text.length>10000)return reply({error:'REQUEST_TOO_LARGE'},413);
- const b=JSON.parse(text);
+
  if(typeof b.password!=='string'||b.password.length<6||b.password.length>128)return reply({error:'PASSWORD_LENGTH'},400);
  if(b.action==='create_staff'){
   const {data:owner,error:ownerError}=await user.rpc('is_owner');

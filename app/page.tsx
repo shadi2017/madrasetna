@@ -5,7 +5,8 @@ import { SidebarProvider, Sidebar, SidebarHeader, SidebarContent, SidebarFooter,
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from '@/components/ui/table';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Progress } from '@/components/ui/progress';
-import { supabase, configured } from './core/client';
+import { ResetAdminPassword } from './features/recovery';
+import { supabase, configured, recoveryRequested } from './core/client';
 import { loadData, rpc, account } from './core/api';
 import { makeDemo, demoRpc, demoAccount } from './core/demo';
 import { Data, Student, Day, Audit, emptyData, defaultSettings, summary, total, categories, localDate, safeError, password } from './core/model';
@@ -23,6 +24,7 @@ type View = 'home' | 'students' | 'scan' | 'grades' | 'days' | 'history' | 'sett
 const nav = [['home', 'نظرة عامة', LayoutDashboard], ['students', 'الطلاب', Users], ['approvals', 'طلبات التسجيل', UserCheck], ['scan', 'تسجيل الحضور', QrCode], ['grades', 'التقييمات', ClipboardList], ['days', 'أيام الدراسة', CalendarDays], ['excel', 'استيراد وتصدير', FileSpreadsheet], ['history', 'السجل والمحذوفات', History], ['grading', 'نظام الدرجات والنتيجة', Calculator], ['settings', 'إعدادات الدراسة', SettingsIcon], ['account', 'حسابي', KeyRound], ['staff', 'المشرفون', ShieldCheck]] as const;
 const arDate = (s: string | null) => s ? new Date(s.length === 10 ? s + 'T12:00:00' : s).toLocaleDateString('ar-EG', { day: 'numeric', month: 'long', year: 'numeric' }) : 'بدون تاريخ';
 export default function App() {
+    const [recovering,setRecovering]=useState(recoveryRequested);
     const [data, setData] = useState<Data>(emptyData), [user, setUser] = useState<string | null>(null), [authReady, setAuthReady] = useState(!configured), [demo, setDemo] = useState(false), [demoStudent, setDemoStudent] = useState(false), [view, setView] = useState<View>('home'), [loading, setLoading] = useState(false), [busy, setBusy] = useState(false), [error, setError] = useState(''), [online, setOnline] = useState(navigator.onLine), [sync, setSync] = useState(''), [query, setQuery] = useState(''), [page, setPage] = useState(0), [filter, setFilter] = useState('all'), [selectedDay, setSelectedDay] = useState(''), [selectedStudent, setSelectedStudent] = useState('');
     const [demoUserId, setDemoUserId] = useState<string | null>(null);
     const [gradeTab, setGradeTab] = useState("daily");
@@ -41,7 +43,7 @@ export default function App() {
     useEffect(() => {
         if (!supabase)
             return;
-        const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => { setUser(session?.user.id || null); setAuthReady(true); });
+        const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => { if(_event==='PASSWORD_RECOVERY')setRecovering(true);setUser(session?.user.id || null); setAuthReady(true); });
         return () => listener.subscription.unsubscribe();
     }, []);
     useEffect(() => { const on = () => setOnline(true), off = () => setOnline(false); window.addEventListener('online', on); window.addEventListener('offline', off); return () => { window.removeEventListener('online', on); window.removeEventListener('offline', off); }; }, []);
@@ -225,6 +227,7 @@ export default function App() {
     const filtered = students.filter(s => (s.full_name + ' ' + s.phone + ' ' + s.username).toLowerCase().includes(query.toLowerCase())).filter(s => filter === 'all' || (data.evaluations.some(e => e.student_id === s.id && e.day_id === day?.id && e.present && !e.deleted_at)) === (filter === 'present'));
     const studentSelf = demo ? data.students.find(s => s.id === demoUserId) || students[0] : data.students.find(s => s.id === user && !s.deleted_at);
     const statCards = <div className="stats"><Stat label="إجمالي الطلاب" value={students.length} icon={<Users />} hint="طالب مسجل في الدراسة"/><Stat label="الحضور" value={presence} icon={<Check />} hint={day?.label || 'لم يتم تحديد يوم'}/><Stat label="لم يسجلوا الحضور" value={day ? students.length - presence : '—'} icon={<ClipboardList />} hint="في يوم الدراسة المختار"/><Stat label="أيام الدراسة" value={days.length} icon={<CalendarDays />} hint="تحددها من جدول الدراسة"/></div>;
+    if (recovering) return <ResetAdminPassword onDone={()=>{setRecovering(false);toast.success('تقدر تدخل لحسابك من شاشة تسجيل الدخول.');}}/>;
     if (!authReady)
         return <div className="full-loading">جاري التحقق من تسجيل الدخول…</div>;
     if (!user && !demo)
