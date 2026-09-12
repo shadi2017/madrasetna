@@ -28,12 +28,14 @@ export function Scanner({ onScan, disabled }: {
     onScan: (token: string) => Promise<{
         name: string;
         duplicate: boolean;
+        discipline_awarded?: boolean;
     }>;
     disabled: boolean;
 }) {
     const [active, setActive] = useState(false), [starting, setStarting] = useState(false), [message, setMessage] = useState(''), [manual, setManual] = useState(''), [result, setResult] = useState<{
         name: string;
         duplicate: boolean;
+        discipline_awarded?: boolean;
     } | null>(null);
     const scanner = useRef<Html5Qrcode | null>(null), mounted = useRef(true), locked = useRef(false), last = useRef(0), callback = useRef(onScan), disabledRef = useRef(disabled);
     callback.current = onScan;
@@ -104,6 +106,6 @@ export function Scanner({ onScan, disabled }: {
             setActive(false);
         }
     }
-    return <section className="scanner-card"><div className="scanner-heading"><ScanLine /><h3>مسح كود الطالب</h3></div><div id="qr-reader" className={active ? 'camera-view' : 'camera-view idle'}/>{!active && <div className="camera-placeholder"><QrIcon /><p>وجّه الكاميرا للرمز الموجود في بروفايل الطالب</p></div>}<div className="actions">{active ? <button className="secondary" onClick={() => void stop()}><Square size={17}/>إيقاف الكاميرا</button> : <button className="primary" disabled={disabled || starting} onClick={() => void start()}><Camera size={18}/>{starting ? 'جاري فتح الكاميرا…' : 'فتح الكاميرا'}</button>}</div>{message && <p className="error" role="alert">{message}</p>}{result && <div className="scan-result" role="status"><b>{result.name}</b><span>{result.duplicate ? 'الحضور مسجل بالفعل لهذا اليوم' : 'تم تسجيل الحضور بنجاح'}</span></div>}<details><summary>إدخال محتوى QR يدويًا</summary><form onSubmit={e => { e.preventDefault(); void read(manual); }}><label>محتوى الرمز<input value={manual} onChange={e => setManual(e.target.value)} dir="ltr" placeholder="madrasetna:v1:…"/></label><button className="secondary" disabled={disabled}>تسجيل الحضور</button></form></details></section>;
+    return <section className="scanner-card"><div className="scanner-heading"><ScanLine /><h3>مسح كود الطالب</h3></div><div id="qr-reader" className={active ? 'camera-view' : 'camera-view idle'}/>{!active && <div className="camera-placeholder"><QrIcon /><p>وجّه الكاميرا للرمز الموجود في بروفايل الطالب</p></div>}<div className="actions">{active ? <button className="secondary" onClick={() => void stop()}><Square size={17}/>إيقاف الكاميرا</button> : <button className="primary" disabled={disabled || starting} onClick={() => void start()}><Camera size={18}/>{starting ? 'جاري فتح الكاميرا…' : 'فتح الكاميرا'}</button>}</div>{message && <p className="error" role="alert">{message}</p>}{result && <div className="scan-result" role="status"><b>{result.name}</b><span>{result.duplicate ? 'الحضور مسجل بالفعل لهذا اليوم' : result.discipline_awarded ? 'تم تسجيل الحضور والالتزام كاملًا' : 'تم تسجيل الحضور فقط'}</span></div>}<details><summary>إدخال محتوى QR يدويًا</summary><form onSubmit={e => { e.preventDefault(); void read(manual); }}><label>محتوى الرمز<input value={manual} onChange={e => setManual(e.target.value)} dir="ltr" placeholder="madrasetna:v1:…"/></label><button className="secondary" disabled={disabled}>تسجيل الحضور</button></form></details></section>;
 }
 function QrIcon() { return <ScanLine size={68} strokeWidth={1}/>; }

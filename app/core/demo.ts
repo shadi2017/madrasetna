@@ -4,7 +4,7 @@ export function makeDemo(): Data {
     const students: Student[] = ['مينا جورج', 'مريم عادل', 'يوسف فادي', 'مارينا ممدوح', 'كيرلس سامح', 'سارة عاطف', 'بولا هاني'].map((name, i) => ({ ...base(), username: 'student_' + (i + 1), full_name: name, phone: '0100000000' + i, qr_token: crypto.randomUUID(), created_at: now, status: i === 6 ? 'pending' : 'active' }));
     const days = Array.from({ length: 10 }, (_, i) => { const d = new Date(); d.setDate(d.getDate() + i - 2); return { ...base(), label: 'اليوم ' + (i + 1), date: [d.getFullYear(), String(d.getMonth() + 1).padStart(2, '0'), String(d.getDate()).padStart(2, '0')].join('-') }; });
     const evaluations: Evaluation[] = students.filter(active).flatMap((s, i) => days.slice(0, 3).map((d, j) => ({ ...base(), student_id: s.id, day_id: d.id, present: (i + j) % 4 !== 0, attended_at: now, scores: { discipline: 8, bible: 10, devotion: 7, memory: 6, phone: 10, hymns: 8, games: 9, quiz: 7 }, notes: '' })));
-    const data: Data = { students, days, evaluations, finals: students.filter(active).map((s, i) => ({ ...base(), student_id: s.id, part_scores: { part_1: 85 - i * 3, part_2: 80 - i * 2, part_3: 90 - i * 2 }, competition: 75 - i * 3, project: 80 - i * 4, notes: '' })), grading: structuredClone(defaultGrading), results: [], settings: { ...defaultSettings, slogan: 'نكبر معًا، خطوة بخطوة', verse: 'اسم الدراسة وآيتها وشعارها يتغيروا من الإعدادات.' }, audit: [], admin: true };
+    const data: Data = { students, days, evaluations, finals: students.filter(active).map((s, i) => ({ ...base(), student_id: s.id, part_scores: { part_1: 85 - i * 3, part_2: 80 - i * 2, part_3: 90 - i * 2 }, competition: 75 - i * 3, project: 80 - i * 4, notes: '' })), grading: structuredClone(defaultGrading), results: [], settings: { ...defaultSettings, slogan: 'نكبر معًا، خطوة بخطوة', verse: 'اسم الدراسة وآيتها وشعارها يتغيروا من الإعدادات.' }, audit: [], admin: true, owner: true };
     data.results = rankings(data);
     return data;
 }
@@ -18,11 +18,11 @@ export function demoRpc(data: Data, name: string, a: Record<string, any>) {
         result = update('students', a.p_id, { full_name: a.p_name, phone: a.p_phone }, a.p_version);
     else if (name === 'set_student_status')
         result = update('students', a.p_id, { status: a.p_status }, a.p_version);
-    else if (name === 'save_day') {
+    else if ((name === 'save_day' || name === 'save_day_v2')) {
         if (a.p_id)
-            result = update('days', a.p_id, { label: a.p_label, date: a.p_date }, a.p_version);
+            result = update('days', a.p_id, { label: a.p_label, date: a.p_date, discipline_deadline: a.p_deadline ?? null }, a.p_version);
         else {
-            result = { id: crypto.randomUUID(), label: a.p_label, date: a.p_date, version: 1, updated_at: now, deleted_at: null };
+            result = { id: crypto.randomUUID(), label: a.p_label, date: a.p_date, discipline_deadline: a.p_deadline ?? null, version: 1, updated_at: now, deleted_at: null };
             next.days.push(result);
             after = result;
             entity = 'days';
@@ -36,7 +36,7 @@ export function demoRpc(data: Data, name: string, a: Record<string, any>) {
         after = next.settings;
         entity = 'settings';
     }
-    else if (name === 'save_grading') {
+    else if ((name === 'save_grading' || name === 'save_grading_v2')) {
         const c = a.p_config;
         if (!validConfig(c))
             throw Error('INVALID_CONFIG');
@@ -45,7 +45,7 @@ export function demoRpc(data: Data, name: string, a: Record<string, any>) {
         if (next.evaluations.some(e => categories.some(([k]) => (e.scores[k] || 0) > c.daily_max[k])) || next.finals.some(f => f.competition > c.competition_max || f.project > c.project_max || Object.entries(f.part_scores).some(([k, v]) => v > (c.parts.find((p: any) => p.id === k)?.max || 0))))
             throw Error('CONFIG_BELOW_EXISTING');
         before = structuredClone(next.grading);
-        next.grading = { ...next.grading, config: c, results_published: a.p_published, version: next.grading.version + 1, updated_at: now };
+        next.grading = { ...next.grading, config: c, results_published: a.p_published, competition_published: a.p_competition_published ?? next.grading.competition_published, project_published: a.p_project_published ?? next.grading.project_published, version: next.grading.version + 1, updated_at: now };
         after = next.grading;
         entity = 'grading';
         result = next.grading;
@@ -90,12 +90,17 @@ export function demoRpc(data: Data, name: string, a: Record<string, any>) {
         if (!next.days.some(d => d.id === a.p_day && d.date && !d.deleted_at))
             throw Error('DAY_NEEDS_DATE');
         const old = next.evaluations.find(e => e.student_id === s.id && e.day_id === a.p_day);
-        result = { name: s.full_name, duplicate: !!old?.present && !old.deleted_at };
+        const scanDay = next.days.find(d=>d.id===a.p_day)!;
+        const cairo = new Intl.DateTimeFormat('en-CA',{timeZone:'Africa/Cairo',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
+        const time = new Intl.DateTimeFormat('en-GB',{timeZone:'Africa/Cairo',hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false}).format(new Date());
+        const eligible = !!scanDay.discipline_deadline && scanDay.date===cairo && time <= (scanDay.discipline_deadline.length===5 ? scanDay.discipline_deadline+':00' : scanDay.discipline_deadline);
+        const scanScores = eligible ? {...old?.scores,discipline:next.grading.config.daily_max.discipline} : old?.scores || {};
+        result = { discipline_awarded: eligible && !(old?.present && !old.deleted_at), name: s.full_name, duplicate: !!old?.present && !old.deleted_at };
         if (!result.duplicate) {
             if (old)
-                update('evaluations', old.id, { present: true, attended_at: now, deleted_at: null });
+                update('evaluations', old.id, { present: true, scores: scanScores, attended_at: now, deleted_at: null });
             else {
-                after = { id: crypto.randomUUID(), student_id: s.id, day_id: a.p_day, present: true, attended_at: now, scores: {}, notes: '', deleted_at: null, version: 1, updated_at: now };
+                after = { id: crypto.randomUUID(), student_id: s.id, day_id: a.p_day, present: true, attended_at: now, scores: scanScores, notes: '', deleted_at: null, version: 1, updated_at: now };
                 next.evaluations.push(after);
                 entity = 'evaluations';
             }

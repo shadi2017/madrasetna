@@ -18,7 +18,18 @@ Deno.serve(async req => {
  const text=await req.text();if(text.length>10000)return reply({error:'REQUEST_TOO_LARGE'},413);
  const b=JSON.parse(text);
  if(typeof b.password!=='string'||b.password.length<6||b.password.length>128)return reply({error:'PASSWORD_LENGTH'},400);
+ if(b.action==='create_staff'){
+  const {data:owner,error:ownerError}=await user.rpc('is_owner');
+  if(ownerError||owner!==true)return reply({error:'OWNER_REQUIRED'},403);
+  if(typeof b.email!=='string'||! /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(b.email)||b.email.length>254)return reply({error:'INVALID_STUDENT'},400);
+  const {data:created,error}=await admin.auth.admin.createUser({email:b.email.trim(),password:b.password,email_confirm:true});
+  if(error)return reply({error:'USERNAME_EXISTS_OR_INVALID'},409);
+  const {error:grantError}=await user.rpc('set_staff',{p_email:created.user.email,p_enabled:true});
+  if(grantError){await admin.auth.admin.deleteUser(created.user.id);return reply({error:'PROFILE_CREATE_FAILED'},400)}
+  return reply({ok:true});
+ }
  if(b.action==='create'){
+
   if(!/^[a-z0-9_]{3,32}$/.test(b.username||'')||typeof b.name!=='string'||b.name.trim().length<2||b.name.length>100||!/^\+?[0-9]{8,15}$/.test(b.phone||''))return reply({error:'INVALID_STUDENT'},400);
   const {data:created,error}=await admin.auth.admin.createUser({email:b.username+'@students.invalid',password:b.password,email_confirm:true});
   if(error)return reply({error:'USERNAME_EXISTS_OR_INVALID'},409);
@@ -32,6 +43,10 @@ Deno.serve(async req => {
   return reply({profile});
  }
  if(b.action==='reset'){
+  const {data:owner,error:ownerError}=await user.rpc('is_owner');
+  if(ownerError||owner!==true)return reply({error:'OWNER_REQUIRED'},403);
+  const {data:staff}=await admin.from('admins').select('user_id').eq('user_id',b.id).maybeSingle();
+  if(staff)return reply({error:'OWNER_PROTECTED'},403);
   const {data:profile,error}=await user.from('profiles').select('id').eq('id',b.id).is('deleted_at',null).single();
   if(error||!profile)return reply({error:'STUDENT_NOT_FOUND'},404);
   const {error:resetError}=await admin.auth.admin.updateUserById(profile.id,{password:b.password});

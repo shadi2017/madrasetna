@@ -12,7 +12,7 @@
     "start": "vite preview --config vite.static.config.ts --host 127.0.0.1",
     "lint": "eslint . --ignore-pattern dist --ignore-pattern .next",
     "db:generate": "drizzle-kit generate",
-    "test": "node tests/domain.mjs && node tests/security.mjs && node tests/grading-security.mjs && node tests/upgrade.mjs && node tests/excel.mjs"
+    "test": "node tests/domain.mjs && node tests/security.mjs && node tests/grading-security.mjs && node tests/upgrade.mjs && node tests/excel.mjs && node tests/staff-security.mjs"
   },
   "dependencies": {
     "@base-ui/react": "^1.7.0",

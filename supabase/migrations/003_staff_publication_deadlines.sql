@@ -63,3 +63,17 @@ revoke execute on function public.is_owner(),public.require_owner(),public.list_
 grant execute on function public.is_owner(),public.list_staff(),public.set_staff(text,boolean),public.save_grading_v2(jsonb,boolean,boolean,boolean,integer),public.get_final_scores(),public.get_results(),public.save_day_v2(uuid,text,date,time,integer) to authenticated;
 -- The existing result signal also refreshes role changes, without exposing staff identities.
 create trigger admins_signal after insert or update or delete on public.admins for each row execute function public.signal_results_changed();
+
+create or replace function public.restore_revision(p_audit uuid,p_version integer) returns void language plpgsql security definer set search_path='' as $$
+declare a public.audit_log;n integer;
+begin perform public.require_admin();select * into a from public.audit_log where id=p_audit;
+ if not found or a.before_data is null then raise exception 'NO_PREVIOUS_VERSION';end if;
+ if a.entity='profiles' then update public.profiles set status=coalesce(a.before_data->>'status',status),full_name=a.before_data->>'full_name',phone=a.before_data->>'phone',deleted_at=(a.before_data->>'deleted_at')::timestamptz where id=a.record_id::uuid and version=p_version;
+ elsif a.entity='days' then update public.days set discipline_deadline=(a.before_data->>'discipline_deadline')::time,label=a.before_data->>'label',date=(a.before_data->>'date')::date,deleted_at=(a.before_data->>'deleted_at')::timestamptz where id=a.record_id::uuid and version=p_version;
+ elsif a.entity='evaluations' then update public.evaluations set scores=a.before_data->'scores',present=(a.before_data->>'present')::boolean,attended_at=(a.before_data->>'attended_at')::timestamptz,notes=a.before_data->>'notes',deleted_at=(a.before_data->>'deleted_at')::timestamptz where id=a.record_id::uuid and version=p_version;
+ elsif a.entity='final_scores' then update public.final_scores set part_scores=a.before_data->'part_scores',competition=(a.before_data->>'competition')::numeric,project=(a.before_data->>'project')::numeric,notes=a.before_data->>'notes',deleted_at=(a.before_data->>'deleted_at')::timestamptz where id=a.record_id::uuid and version=p_version;
+ elsif a.entity='grading' then update public.grading set competition_published=coalesce((a.before_data->>'competition_published')::boolean,false),project_published=coalesce((a.before_data->>'project_published')::boolean,false),config=a.before_data->'config',results_published=(a.before_data->>'results_published')::boolean where id=1 and version=p_version;
+ elsif a.entity='settings' then update public.settings set name=a.before_data->>'name',slogan=a.before_data->>'slogan',verse=a.before_data->>'verse',logo=a.before_data->>'logo' where id=1 and version=p_version;
+ else raise exception 'INVALID_ENTITY';end if;
+ get diagnostics n=row_count;if n<>1 then raise exception 'CONFLICT_REFRESH';end if;
+end $$;

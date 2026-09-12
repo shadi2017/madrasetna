@@ -53,7 +53,7 @@ export function ExcelPanel({ data, busy, demo, mutate, account }: {
                     }
                 }
                 if (item.sheet === 'الأيام')
-                    await mutate('save_day', { p_id: v.id || null, p_label: v.label, p_date: v.date || null, p_version: Number(v.version || 0) }, true);
+                    await mutate('save_day_v2', { p_deadline: v.discipline_deadline || null, p_id: v.id || null, p_label: v.label, p_date: v.date || null, p_version: Number(v.version || 0) }, true);
                 if (item.sheet === 'التقييمات')
                     await mutate('save_evaluation', { p_student: v.student_id, p_day: v.day_id, p_present: v.present, p_scores: Object.fromEntries(categories.map(([k]) => [k, v[k] ?? 0])), p_notes: v.notes || '', p_version: Number(v.version || 0) }, true);
                 if (item.sheet === 'الدرجات المستقلة')

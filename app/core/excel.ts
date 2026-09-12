@@ -10,7 +10,7 @@ const specs = (data: Data): Record<string, [
     string
 ][]> => ({
     'الطلاب': [['id', 'المعرف'], ['version', 'الإصدار'], ['username', 'اسم المستخدم'], ['full_name', 'الاسم'], ['phone', 'الموبايل'], ['deleted_at', 'تاريخ الحذف'], ['qr_token', 'رمز QR'], ['status', 'حالة الحساب']],
-    'الأيام': [['id', 'المعرف'], ['version', 'الإصدار'], ['label', 'اليوم'], ['date', 'التاريخ'], ['deleted_at', 'تاريخ الحذف']],
+    'الأيام': [['id', 'المعرف'], ['version', 'الإصدار'], ['label', 'اليوم'], ['date', 'التاريخ'], ['discipline_deadline', 'آخر موعد للالتزام'], ['deleted_at', 'تاريخ الحذف']],
     'التقييمات': [['id', 'المعرف'], ['version', 'الإصدار'], ['student_id', 'معرف الطالب'], ['day_id', 'معرف اليوم'], ['present', 'حاضر'], ...categories.map(([k, l]) => [k, l] as [
             string,
             string
@@ -119,6 +119,8 @@ export async function parseWorkbook(file: File, data: Data): Promise<ImportRow[]
             if (name === 'الأيام') {
                 if (!str('label') || str('label').length > 100)
                     error = 'اسم اليوم مطلوب (حتى 100 حرف).';
+                const deadline = str('discipline_deadline');
+                if (deadline && !/^([01]\d|2[0-3]):[0-5]\d(:[0-5]\d)?$/.test(deadline)) error = 'موعد الالتزام لازم يكون HH:MM بتوقيت القاهرة.';
                 const date = str('date');
                 if (date && (!/^\d{4}-\d{2}-\d{2}$/.test(date) || isNaN(Date.parse(date)) || new Date(date).toISOString().slice(0, 10) !== date))
                     error = 'التاريخ لازم يكون YYYY-MM-DD صحيح.';
