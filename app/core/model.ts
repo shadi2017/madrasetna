@@ -19,6 +19,7 @@ export type Student = Base & {
 export type Day = Base & {
     label: string;
     date: string | null;
+    discipline_deadline?: string | null;
 };
 export type Evaluation = Base & {
     student_id: string;
@@ -47,6 +48,8 @@ export type Grading = {
     id: number;
     config: ScoreConfig;
     results_published: boolean;
+    competition_published?: boolean;
+    project_published?: boolean;
     version: number;
     updated_at: string;
 };
@@ -97,6 +100,7 @@ export type Data = {
     settings: Settings;
     audit: Audit[];
     admin: boolean;
+    owner?: boolean;
 };
 export const defaultSettings: Settings = { id: 1, name: 'مدرستنا', slogan: '', verse: '', logo: '', version: 1, updated_at: '' };
 export const defaultConfig: ScoreConfig = { daily_max: { attendance: 10, discipline: 10, bible: 10, devotion: 10, memory: 10, phone: 10, hymns: 10, games: 10, quiz: 10 }, daily_target: 200, parts: [{ id: 'part_1', label: 'الجزء 1', max: 100 }, { id: 'part_2', label: 'الجزء 2', max: 100 }, { id: 'part_3', label: 'الجزء 3', max: 100 }], parts_target: 200, competition_max: 100, competition_target: 200, project_max: 100, project_target: 200 };
@@ -125,7 +129,7 @@ export function validStudent(name: string, phone: string, username: string) { re
 export function password() { return 'M!' + crypto.randomUUID().replaceAll('-', '').slice(0, 14); }
 export function safeError(error: unknown) { const s = error instanceof Error ? error.message : String((error as {
     message?: string;
-})?.message || error); const messages: Record<string, string> = { CONFIG_BELOW_EXISTING: 'فيه درجات مسجلة أعلى من النهاية الجديدة أو جزء عليه درجات. راجع الدرجات قبل تقليل النهاية أو حذف الجزء.', INVALID_CONFIG: 'راجع نهايات الدرجات وأجزاء الحفظ. كل نهاية لازم تكون أكبر من صفر.', SCORE_OUT_OF_RANGE: 'الدرجة خارج النهاية المحددة في نظام الدرجات.', CONFLICT_REFRESH: 'البيانات اتغيرت عند أدمن تاني. حدّث الصفحة وراجع التعديل قبل الحفظ.', INVALID_QR: 'الرمز غير صالح أو حساب الطالب غير مفعل.', DAY_NEEDS_DATE: 'حدد يوم دراسة له تاريخ أولًا.', DAY_NOT_FOUND: 'اليوم محذوف أو غير موجود.', STUDENT_NOT_FOUND: 'الطالب غير مفعل أو محذوف.', ADMIN_REQUIRED: 'الحساب ده لا يملك صلاحيات الأدمن.', USERNAME_EXISTS_OR_INVALID: 'اسم المستخدم مستخدم بالفعل أو غير صالح.', PASSWORD_LENGTH: 'كلمة المرور لازم تكون من 6 إلى 128 حرف.', PASSWORD_RESET_FAILED: 'تعذر تغيير كلمة المرور.', PROFILE_CREATE_FAILED: 'تعذر إنشاء بيانات الطالب. راجع الاسم والموبايل.', INVALID_STUDENT: 'راجع الاسم والموبايل واسم المستخدم.', NO_PREVIOUS_VERSION: 'التعديل ده ملوش نسخة سابقة.', UNAUTHORIZED: 'الجلسة انتهت. سجل الدخول من جديد.', REQUEST_FAILED: 'تعذر تنفيذ الطلب. راجع الاتصال وإعداد الخادم.' }; for (const [k, v] of Object.entries(messages))
+})?.message || error); const messages: Record<string, string> = { CONFIG_BELOW_EXISTING: 'فيه درجات مسجلة أعلى من النهاية الجديدة أو جزء عليه درجات. راجع الدرجات قبل تقليل النهاية أو حذف الجزء.', INVALID_CONFIG: 'راجع نهايات الدرجات وأجزاء الحفظ. كل نهاية لازم تكون أكبر من صفر.', SCORE_OUT_OF_RANGE: 'الدرجة خارج النهاية المحددة في نظام الدرجات.', CONFLICT_REFRESH: 'البيانات اتغيرت عند أدمن تاني. حدّث الصفحة وراجع التعديل قبل الحفظ.', INVALID_QR: 'الرمز غير صالح أو حساب الطالب غير مفعل.', DAY_NEEDS_DATE: 'حدد يوم دراسة له تاريخ أولًا.', DAY_NOT_FOUND: 'اليوم محذوف أو غير موجود.', STUDENT_NOT_FOUND: 'الطالب غير مفعل أو محذوف.', ADMIN_REQUIRED: 'الحساب ده لا يملك صلاحيات الأدمن.', USERNAME_EXISTS_OR_INVALID: 'اسم المستخدم مستخدم بالفعل أو غير صالح.', OWNER_REQUIRED: 'تغيير كلمات مرور الآخرين وإدارة المشرفين للأدمن الرئيسي فقط.', ACCOUNT_NOT_FOUND: 'الحساب غير موجود. أنشئ حساب المشرف أولًا.', OWNER_PROTECTED: 'لا يمكن إزالة الأدمن الرئيسي.', PASSWORD_LENGTH: 'كلمة المرور لازم تكون من 6 إلى 128 حرف.', PASSWORD_RESET_FAILED: 'تعذر تغيير كلمة المرور.', PROFILE_CREATE_FAILED: 'تعذر إنشاء بيانات الطالب. راجع الاسم والموبايل.', INVALID_STUDENT: 'راجع الاسم والموبايل واسم المستخدم.', NO_PREVIOUS_VERSION: 'التعديل ده ملوش نسخة سابقة.', UNAUTHORIZED: 'الجلسة انتهت. سجل الدخول من جديد.', REQUEST_FAILED: 'تعذر تنفيذ الطلب. راجع الاتصال وإعداد الخادم.' }; for (const [k, v] of Object.entries(messages))
     if (s.includes(k))
         return v; if (s.includes('Invalid login'))
     return 'اسم المستخدم أو كلمة المرور غير صحيحة.'; if (s.includes('23505') || s.includes('duplicate key') || s.includes('User already registered'))

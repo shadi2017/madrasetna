@@ -13,8 +13,9 @@ export async function loadData(): Promise<Data> {
     if (error)
         throw error;
     const [students, days, evaluations, settings, audit, grading, finals, results] = await Promise.all([rows('profiles'), rows('days'), rows('evaluations'), rows('settings'), admin ? supabase!.from('audit_log').select('*').order('created_at', { ascending: false }).limit(200).then(({ data, error }) => { if (error)
-            throw error; return data; }) : Promise.resolve([]), rows('grading'), rows('final_scores'), rpc('get_results', {})]);
-    return { ...emptyData, students, days, evaluations, settings: settings[0] || emptyData.settings, audit, grading: grading[0] || emptyData.grading, finals, results, admin: !!admin } as Data;
+            throw error; return data; }) : Promise.resolve([]), rows('grading'), rpc('get_final_scores', {}), rpc('get_results', {})]);
+    const owner = admin ? await rpc("is_owner", {}) : false;
+    return { ...emptyData, owner, students, days, evaluations, settings: settings[0] || emptyData.settings, audit, grading: grading[0] || emptyData.grading, finals, results, admin: !!admin } as Data;
 }
 export async function rpc(name: string, args: Record<string, unknown>) { if (!supabase)
     throw Error('NOT_CONFIGURED'); const { data, error } = await supabase.rpc(name, args); if (error)

@@ -23,9 +23,9 @@ export function StudentForm({ student, busy, onSave, onClose }: {
 export function DayForm({ day, busy, onSave, onClose }: {
     day?: Day;
     busy: boolean;
-    onSave: (label: string, date: string) => Promise<void>;
+    onSave: (label: string, date: string, deadline: string) => Promise<void>;
     onClose: () => void;
-}) { const [label, setLabel] = useState(day?.label || ''), [date, setDate] = useState(day?.date || ''); return <Modal title={day ? 'تعديل اليوم' : 'إضافة يوم دراسة'} description="ممكن تسيب التاريخ فاضي وتحدده قبل مسح الحضور." onClose={onClose}><form onSubmit={e => { e.preventDefault(); void onSave(label, date); }}><label>اسم اليوم<input required maxLength={100} value={label} onChange={e => setLabel(e.target.value)}/></label><label>التاريخ<input type="date" value={date} onChange={e => setDate(e.target.value)}/></label><button className="primary" disabled={busy}>حفظ اليوم</button></form></Modal>; }
+}) { const [label, setLabel] = useState(day?.label || ''), [date, setDate] = useState(day?.date || ''), [deadline, setDeadline] = useState(day?.discipline_deadline?.slice(0,5) || ''); return <Modal title={day ? 'تعديل اليوم' : 'إضافة يوم دراسة'} description="ممكن تسيب التاريخ فاضي وتحدده قبل مسح الحضور." onClose={onClose}><form onSubmit={e => { e.preventDefault(); void onSave(label, date, deadline); }}><label>اسم اليوم<input required maxLength={100} value={label} onChange={e => setLabel(e.target.value)}/></label><label>التاريخ<input type="date" value={date} onChange={e => setDate(e.target.value)}/></label><label>آخر موعد لدرجة الالتزام — توقيت القاهرة<input type="time" value={deadline} onChange={e => setDeadline(e.target.value)}/><small>المسح في نفس التاريخ حتى الموعد يمنح درجة الالتزام كاملة. بعده حضور فقط. تركه فارغًا يلغي الالتزام التلقائي.</small></label><button className="primary" disabled={busy}>حفظ اليوم</button></form></Modal>; }
 export function EvaluationForm({ record, config, busy, onSave }: {
     record?: Evaluation;
     config: ScoreConfig;
