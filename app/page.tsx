@@ -1,14 +1,15 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { type ComponentProps, useCallback, useEffect, useRef, useState } from 'react';
 import { BookOpen, QrCode, ShieldCheck, Users, ArrowLeft, LayoutDashboard, CalendarDays, ClipboardList, History, Settings as SettingsIcon, LogOut, Plus, Search, ChevronLeft, Download, FileSpreadsheet, RotateCcw, Trash2, KeyRound, Pencil, RefreshCw, Check, WifiOff, GraduationCap, UserCheck, Calculator } from 'lucide-react';
 import { Toaster, toast } from 'sonner';
-import { SidebarProvider, Sidebar, SidebarHeader, SidebarContent, SidebarFooter, SidebarMenu, SidebarMenuItem, SidebarMenuButton, SidebarInset, SidebarTrigger } from '@/components/ui/sidebar';
+import { SidebarProvider, Sidebar, SidebarHeader, SidebarContent, SidebarFooter, SidebarMenu, SidebarMenuItem, SidebarMenuButton, SidebarInset, SidebarTrigger, useSidebar } from '@/components/ui/sidebar';
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from '@/components/ui/table';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Progress } from '@/components/ui/progress';
 import { ResetAdminPassword } from './features/recovery';
 import { supabase, configured, recoveryRequested } from './core/client';
-import { loadData, rpc, account } from './core/api';
+import { createDataLoader, rpc, account } from './core/api';
 import { makeDemo, demoRpc, demoAccount } from './core/demo';
+import { serialSync } from './core/sync';
 import { Data, Student, Day, Audit, emptyData, defaultSettings, summary, total, categories, localDate, safeError, password } from './core/model';
 import { Modal, Picker, Confirm, Empty } from './features/ui';
 import { QrCard, Scanner } from './features/qr';
@@ -23,6 +24,7 @@ import { AccountPanel, StaffPanel } from './features/account';
 type View = 'home' | 'students' | 'scan' | 'grades' | 'days' | 'history' | 'settings' | 'excel' | 'profile' | 'approvals' | 'grading' | 'account' | 'staff';
 const nav = [['home', 'نظرة عامة', LayoutDashboard], ['students', 'الطلاب', Users], ['approvals', 'طلبات التسجيل', UserCheck], ['scan', 'تسجيل الحضور', QrCode], ['grades', 'التقييمات', ClipboardList], ['days', 'أيام الدراسة', CalendarDays], ['excel', 'استيراد وتصدير', FileSpreadsheet], ['history', 'السجل والمحذوفات', History], ['grading', 'نظام الدرجات والنتيجة', Calculator], ['settings', 'إعدادات الدراسة', SettingsIcon], ['account', 'حسابي', KeyRound], ['staff', 'المشرفون', ShieldCheck]] as const;
 const arDate = (s: string | null) => s ? new Date(s.length === 10 ? s + 'T12:00:00' : s).toLocaleDateString('ar-EG', { day: 'numeric', month: 'long', year: 'numeric' }) : 'بدون تاريخ';
+function NavigationButton({onClick,...props}:ComponentProps<typeof SidebarMenuButton>) {const {setOpenMobile}=useSidebar();return <SidebarMenuButton {...props} onClick={event=>{onClick?.(event);setOpenMobile(false)}}/>;}
 export default function App() {
     const [recovering,setRecovering]=useState(recoveryRequested);
     const [data, setData] = useState<Data>(emptyData), [user, setUser] = useState<string | null>(null), [authReady, setAuthReady] = useState(!configured), [demo, setDemo] = useState(false), [demoStudent, setDemoStudent] = useState(false), [view, setView] = useState<View>('home'), [loading, setLoading] = useState(false), [busy, setBusy] = useState(false), [error, setError] = useState(''), [online, setOnline] = useState(navigator.onLine), [sync, setSync] = useState(''), [query, setQuery] = useState(''), [page, setPage] = useState(0), [filter, setFilter] = useState('all'), [selectedDay, setSelectedDay] = useState(''), [selectedStudent, setSelectedStudent] = useState('');
@@ -47,33 +49,24 @@ export default function App() {
         return () => listener.subscription.unsubscribe();
     }, []);
     useEffect(() => { const on = () => setOnline(true), off = () => setOnline(false); window.addEventListener('online', on); window.addEventListener('offline', off); return () => { window.removeEventListener('online', on); window.removeEventListener('offline', off); }; }, []);
-    const refresh = useCallback(async () => {
-        if (demo || !user)
-            return;
-        const serial = ++request.current;
-        try {
-            const next = await loadData();
-            if (serial === request.current) {
-                setData(next);
-                dataRef.current = next;
-                setError('');
-            }
+    const viewRef=useRef(view);viewRef.current=view;
+    const loaderRef=useRef<{user:string;load:ReturnType<typeof createDataLoader>}|null>(null);
+    const syncRunner=useRef<ReturnType<typeof serialSync<{force?:boolean}>>|null>(null);
+    const refresh = useCallback(async (options:{force?:boolean}={}) => {
+        if(demo||!user)return;
+        if(loaderRef.current?.user!==user){loaderRef.current={user,load:createDataLoader()};
+         const loader=loaderRef.current;const generation=++request.current;
+         syncRunner.current=serialSync(async opts=>{try{const next=await loader.load({audit:viewRef.current==='history',force:opts.force});if(request.current===generation){update(next);setError('')}}catch(e){if(request.current===generation)setError(safeError(e))}finally{if(request.current===generation)setLoading(false)}},(a,b)=>({force:a.force||b.force}));
         }
-        catch (e) {
-            if (serial === request.current)
-                setError(safeError(e));
-        }
-        finally {
-            if (serial === request.current)
-                setLoading(false);
-        }
-    }, [demo, user]);
+        await syncRunner.current!(options);
+    }, [demo,user]);
+    useEffect(()=>{if(user&&!demo&&view==='history')void refresh()},[view,user,demo,refresh]);
     useEffect(() => {
         if (!user || demo)
             return;
         setLoading(true);
         void refresh();
-        return () => { request.current++; };
+        return () => { request.current++; loaderRef.current=null;syncRunner.current=null; };
     }, [user, demo, refresh]);
     useEffect(() => {
         if (user || !supabase || demo)
@@ -88,21 +81,20 @@ export default function App() {
     useEffect(() => {
         if (!user || demo || !supabase)
             return;
-        const client = supabase;
-        let timer: ReturnType<typeof setTimeout>;
-        const channel = client.channel('school-' + user);
-        for (const table of ['profiles', 'days', 'evaluations', 'settings', 'grading', 'final_scores', 'results_signal'])
-            channel.on('postgres_changes', { event: '*', schema: 'public', table }, () => { clearTimeout(timer); timer = setTimeout(() => void refresh(), 250); });
-        channel.subscribe(status => setSync(status));
-        const fallback = setInterval(() => {
-            if (navigator.onLine)
-                void refresh();
-        }, 30000);
-        const focus = () => void refresh();
-        window.addEventListener('focus', focus);
-        window.addEventListener('online', focus);
-        return () => { clearTimeout(timer); clearInterval(fallback); window.removeEventListener('focus', focus); window.removeEventListener('online', focus); void client.removeChannel(channel); };
-    }, [user, demo, refresh]);
+        const client=supabase;let channel:ReturnType<typeof client.channel>|null=null;let timer:ReturnType<typeof setTimeout>|undefined;let alive=true;
+        const schedule=()=>{if(document.hidden||!navigator.onLine)return;if(timer)return;timer=setTimeout(()=>{timer=undefined;void refresh()},300)};
+        const connect=()=>{if(!alive||document.hidden||!navigator.onLine||channel)return;channel=client.channel('school-'+user);
+          // One small revision event replaces subscriptions carrying entire rows and logos.
+          channel.on('postgres_changes',{event:'*',schema:'public',table:'results_signal'},schedule);
+          channel.on('postgres_changes',{event:'UPDATE',schema:'public',table:'settings'},schedule);
+          channel.subscribe(status=>{if(!alive)return;setSync(status);if(status==='SUBSCRIBED')schedule()});
+        };
+        const visibility=()=>{clearTimeout(timer);timer=undefined;if(document.hidden){if(channel){void client.removeChannel(channel);channel=null;}setSync('PAUSED')}else{connect();schedule()}};
+        connect();
+        const fallback=setInterval(()=>{if(!document.hidden&&navigator.onLine)void refresh()},30000);
+        document.addEventListener('visibilitychange',visibility);window.addEventListener('online',visibility);
+        return()=>{alive=false;clearTimeout(timer);clearInterval(fallback);document.removeEventListener('visibilitychange',visibility);window.removeEventListener('online',visibility);if(channel)void client.removeChannel(channel)};
+    }, [user,demo,refresh]);
     const admin = demo ? !demoStudent : data.admin;
     const owner = demo ? !demoStudent : !!data.owner;
     const days = data.days.filter(d => !d.deleted_at).sort((a, b) => (a.date || '9999').localeCompare(b.date || '9999') || a.label.localeCompare(b.label, 'ar', { numeric: true }));
@@ -232,7 +224,7 @@ export default function App() {
         return <div className="full-loading">جاري التحقق من تسجيل الدخول…</div>;
     if (!user && !demo)
         return <><Login settings={data.settings} onDemo={startDemo} onDemoRegister={demoRegister}/><Toaster dir="rtl" richColors position="top-center"/></>;
-    return <><SidebarProvider dir="rtl"><Sidebar side="right"><SidebarHeader><div className="brand sidebar-brand">{data.settings.logo ? <img src={data.settings.logo} alt="لوجو الدراسة"/> : <BookOpen />}<b>{data.settings.name}</b></div><small className="sidebar-subtitle">{admin ? 'مساحة الأدمن' : 'مساحة الطالب'}</small></SidebarHeader><SidebarContent><SidebarMenu>{(admin ? nav.filter(n => n[0] !== 'staff' || owner) : [['profile', 'بروفايلي', GraduationCap] as const]).map(([key, label, Icon]) => <SidebarMenuItem key={key}><SidebarMenuButton onClick={() => navigate(key)} isActive={view === key}><Icon /><span>{label}{key === 'approvals' && requests.some(s => s.status === 'pending') ? ' (' + requests.filter(s => s.status === 'pending').length + ')' : ''}</span></SidebarMenuButton></SidebarMenuItem>)}</SidebarMenu></SidebarContent><SidebarFooter><div className="sidebar-verse">{data.settings.slogan || 'معًا في كل خطوة'}{data.settings.verse && <small>{data.settings.verse}</small>}</div><button className="logout" onClick={() => void logout()}><LogOut size={18}/>تسجيل الخروج</button></SidebarFooter></Sidebar><SidebarInset><header className="topbar"><div className="actions"><SidebarTrigger /><span>{admin ? 'إدارة الدراسة' : 'بروفايل الطالب'} <ChevronLeft size={14}/> {nav.find(n => n[0] === view)?.[1] || 'بياناتي'}</span></div><div className="actions"><span className={'sync ' + (!online ? 'offline' : '')}>{demo ? 'نسخة تجريبية' : !online ? 'غير متصل' : sync === 'SUBSCRIBED' ? 'تحديث لحظي متصل' : 'إعادة اتصال • تحديث كل 30 ثانية'}</span><button className="icon-button" aria-label="تحديث البيانات" disabled={demo || loading} onClick={() => void refresh()}><RefreshCw size={18}/></button><div className="avatar small">{admin ? 'أ' : studentSelf?.full_name[0] || 'ط'}</div></div></header>
+    return <><SidebarProvider dir="rtl"><Sidebar side="right"><SidebarHeader><div className="brand sidebar-brand">{data.settings.logo ? <img src={data.settings.logo} alt="لوجو الدراسة"/> : <BookOpen />}<b>{data.settings.name}</b></div><small className="sidebar-subtitle">{admin ? 'مساحة الأدمن' : 'مساحة الطالب'}</small></SidebarHeader><SidebarContent><SidebarMenu>{(admin ? nav.filter(n => n[0] !== 'staff' || owner) : [['profile', 'بروفايلي', GraduationCap] as const]).map(([key, label, Icon]) => <SidebarMenuItem key={key}><NavigationButton onClick={() => navigate(key)} isActive={view === key}><Icon /><span>{label}{key === 'approvals' && requests.some(s => s.status === 'pending') ? ' (' + requests.filter(s => s.status === 'pending').length + ')' : ''}</span></NavigationButton></SidebarMenuItem>)}</SidebarMenu></SidebarContent><SidebarFooter><div className="sidebar-verse">{data.settings.slogan || 'معًا في كل خطوة'}{data.settings.verse && <small>{data.settings.verse}</small>}</div><button className="logout" onClick={() => void logout()}><LogOut size={18}/>تسجيل الخروج</button></SidebarFooter></Sidebar><SidebarInset><header className="topbar"><div className="actions"><SidebarTrigger /><span>{admin ? 'إدارة الدراسة' : 'بروفايل الطالب'} <ChevronLeft size={14}/> {nav.find(n => n[0] === view)?.[1] || 'بياناتي'}</span></div><div className="actions"><span className={'sync ' + (!online ? 'offline' : '')}>{demo ? 'نسخة تجريبية' : !online ? 'غير متصل' : sync === 'SUBSCRIBED' ? 'تحديث لحظي متصل' : 'فحص تغييرات خفيف كل 30 ثانية'}</span><button className="icon-button" aria-label="تحديث البيانات" disabled={demo || loading} onClick={() => void refresh({force:true})}><RefreshCw size={18}/></button><div className="avatar small">{admin ? 'أ' : studentSelf?.full_name[0] || 'ط'}</div></div></header>
     {demo && <div className="demo-banner">بيانات توضيحية للتجربة فقط. التعديلات هنا مؤقتة، ولا تُحفظ على السحابة.<button onClick={() => { setDemoStudent(!demoStudent); setView(demoStudent ? 'home' : 'profile'); }}>{demoStudent ? 'عرض الأدمن' : 'عرض الطالب'}</button></div>}
     {!online && !demo && <div className="warning" role="status"><WifiOff size={18}/>الاتصال مقطوع. المعروض آخر بيانات تم تحميلها؛ الحفظ ومسح الحضور متوقفان.</div>}
     {error && <div className="error" role="alert">{error}<button className="secondary" onClick={() => void refresh()}>إعادة المحاولة</button></div>}
