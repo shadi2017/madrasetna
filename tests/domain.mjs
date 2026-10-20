@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import {parseQr,total,summary,validStudent,defaultSettings,defaultGrading,categories,rankings,validConfig,factor} from '../app/core/model.ts';
+import {parseQr,total,summary,validStudent,defaultSettings,defaultGrading,categories,rankings,validConfig,factor,contentText,contentBool} from '../app/core/model.ts';
 assert.equal(categories.length,8);
 assert.equal(total(undefined),0);
 const student={id:'s',status:'active',deleted_at:null},day={id:'d',deleted_at:null},evaluation={student_id:'s',day_id:'d',present:true,scores:{quiz:8,bible:9},deleted_at:null};
@@ -21,5 +21,10 @@ assert.throws(()=>parseQr('https://example.com/student/1'));assert.throws(()=>pa
 assert.equal(validStudent('مينا جورج','01012345678','mina_1'),true);
 assert.equal(validStudent('مينا جورج','10123','mina_1'),false);
 assert.equal(validStudent('مينا جورج','01012345678','ADMIN@abc'),false);
+assert.equal(contentText({...defaultSettings,content:{dashboard_title:'لوحة المتابعة'}},'dashboard_title','احتياطي'),'لوحة المتابعة');
+assert.equal(contentText(defaultSettings,'dashboard_title','احتياطي'),'احتياطي');
+assert.equal(contentText({...defaultSettings,content:{dashboard_title:'   '}},'dashboard_title','احتياطي'),'احتياطي');
+assert.equal(contentBool({...defaultSettings,content:{announcement_active:true}},'announcement_active'),true);
+assert.equal(contentBool(defaultSettings,'announcement_active'),false);
 console.log('PASS: dynamic factors, 800-point total, zero denominator, configuration validation, pending exclusion and QR validation.');
 

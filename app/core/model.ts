@@ -71,6 +71,20 @@ export type Result = {
     rank: number;
     participants: number;
 };
+export type SiteContent = {
+    dashboard_title?: string;
+    dashboard_subtitle?: string;
+    announcement_title?: string;
+    announcement_body?: string;
+    announcement_active?: boolean;
+    contact_phone?: string;
+    contact_email?: string;
+    academic_year?: string;
+    login_feature_1?: string;
+    login_feature_2?: string;
+    login_feature_3?: string;
+    footer_text?: string;
+};
 export type Settings = {
     id: number;
     name: string;
@@ -79,6 +93,7 @@ export type Settings = {
     login_title?: string;
     verse: string;
     logo: string;
+    content?: SiteContent;
     version: number;
     updated_at: string;
 };
@@ -104,7 +119,15 @@ export type Data = {
     admin: boolean;
     owner?: boolean;
 };
-export const defaultSettings: Settings = { id: 1, name: 'مدرستنا', slogan: '', verse: '', logo: '', version: 1, updated_at: '' };
+export const defaultSettings: Settings = { id: 1, name: 'مدرستنا', slogan: '', verse: '', logo: '', content: {}, version: 1, updated_at: '' };
+export const defaultContent: SiteContent = {};
+export function contentText(settings: Settings, key: keyof SiteContent, fallback: string) {
+    const value = settings.content?.[key];
+    return typeof value === 'string' && value.trim() ? value : fallback;
+}
+export function contentBool(settings: Settings, key: keyof SiteContent) {
+    return settings.content?.[key] === true;
+}
 export const defaultConfig: ScoreConfig = { daily_max: { attendance: 10, discipline: 10, bible: 10, devotion: 10, memory: 10, phone: 10, hymns: 10, games: 10, quiz: 10 }, daily_target: 200, parts: [{ id: 'part_1', label: 'الجزء 1', max: 100 }, { id: 'part_2', label: 'الجزء 2', max: 100 }, { id: 'part_3', label: 'الجزء 3', max: 100 }], parts_target: 200, competition_max: 100, competition_target: 200, project_max: 100, project_target: 200 };
 export const defaultGrading: Grading = { id: 1, config: defaultConfig, results_published: false, version: 1, updated_at: '' };
 export const emptyData: Data = { students: [], days: [], evaluations: [], finals: [], grading: defaultGrading, results: [], settings: defaultSettings, audit: [], admin: false };

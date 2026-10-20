@@ -47,7 +47,38 @@ export function SettingsForm({ settings, busy, onSave }: {
     onSave: (s: Settings) => Promise<void>;
 }) {
     const [draft, setDraft] = useState(settings), [fileError, setFileError] = useState('');
-    return <form onSubmit={e => { e.preventDefault(); void onSave(draft); }}><label>اسم الدراسة<input required maxLength={100} value={draft.name} onChange={e => setDraft({ ...draft, name: e.target.value })}/></label><label>الشعار النصي<input maxLength={250} value={draft.slogan} onChange={e => setDraft({ ...draft, slogan: e.target.value })}/></label><label>العبارة الصغيرة في شاشة الدخول<input maxLength={250} value={draft.login_tagline ?? 'كل طالب له مكان'} onChange={e=>setDraft({...draft,login_tagline:e.target.value})}/></label><label>العنوان الرئيسي في شاشة الدخول<textarea maxLength={500} rows={2} value={draft.login_title ?? 'أيام بنعيشها.\nوخطوات بنكبرها.'} onChange={e=>setDraft({...draft,login_title:e.target.value})}/></label><label>الآية<textarea maxLength={1000} rows={3} value={draft.verse} onChange={e => setDraft({ ...draft, verse: e.target.value })}/></label><label>اللوجو<input type="file" accept="image/png,image/jpeg,image/webp" onChange={async (e) => {
+    const content = draft.content || {};
+    const setContent = (key: keyof NonNullable<Settings['content']>, value: string | boolean) => setDraft({ ...draft, content: { ...content, [key]: value } });
+    const text = (key: keyof NonNullable<Settings['content']>, fallback = '') => typeof content[key] === 'string' ? content[key] as string : fallback;
+    return <form onSubmit={e => { e.preventDefault(); void onSave(draft); }}>
+        <section className="form-section"><h3>هوية الدراسة</h3><div className="form-grid">
+            <label>اسم الدراسة<input required maxLength={100} value={draft.name} onChange={e => setDraft({ ...draft, name: e.target.value })}/></label>
+            <label>الشعار النصي<input maxLength={250} value={draft.slogan} onChange={e => setDraft({ ...draft, slogan: e.target.value })}/></label>
+            <label>العام الدراسي / الفصل<input maxLength={80} value={text('academic_year')} placeholder="مثال: 2026 / 2027" onChange={e => setContent('academic_year', e.target.value)}/></label>
+        </div></section>
+        <section className="form-section"><h3>شاشة الدخول</h3><div className="form-grid">
+            <label>العبارة الصغيرة<input maxLength={250} value={draft.login_tagline ?? 'كل طالب له مكان'} onChange={e => setDraft({ ...draft, login_tagline: e.target.value })}/></label>
+            <label className="span-2">العنوان الرئيسي<textarea maxLength={500} rows={2} value={draft.login_title ?? 'أيام بنعيشها.\nوخطوات بنكبرها.'} onChange={e => setDraft({ ...draft, login_title: e.target.value })}/></label>
+            <label className="span-2">الآية أو الوصف<textarea maxLength={1000} rows={3} value={draft.verse} onChange={e => setDraft({ ...draft, verse: e.target.value })}/></label>
+            <label>الميزة الأولى<input maxLength={100} value={text('login_feature_1', 'حضور برمز خاص')} onChange={e => setContent('login_feature_1', e.target.value)}/></label>
+            <label>الميزة الثانية<input maxLength={100} value={text('login_feature_2', 'متابعة كل طالب')} onChange={e => setContent('login_feature_2', e.target.value)}/></label>
+            <label>الميزة الثالثة<input maxLength={100} value={text('login_feature_3', 'صلاحيات واضحة')} onChange={e => setContent('login_feature_3', e.target.value)}/></label>
+        </div></section>
+        <section className="form-section"><h3>لوحة التحكم</h3><div className="form-grid">
+            <label className="span-2">عنوان اللوحة<input maxLength={200} value={text('dashboard_title', draft.name + ' في صورة واحدة.')} onChange={e => setContent('dashboard_title', e.target.value)}/></label>
+            <label className="span-2">وصف اللوحة<textarea maxLength={300} rows={2} value={text('dashboard_subtitle', 'نظرة على الحضور والتقدم في الدراسة.')} onChange={e => setContent('dashboard_subtitle', e.target.value)}/></label>
+        </div></section>
+        <section className="form-section"><h3>شريط الإعلان</h3><div className="form-grid">
+            <label className="span-2 checkbox-row"><input type="checkbox" checked={content.announcement_active === true} onChange={e => setContent('announcement_active', e.target.checked)}/><span>إظهار الإعلان للأدمن والطلاب</span></label>
+            <label>عنوان الإعلان<input maxLength={200} value={text('announcement_title')} onChange={e => setContent('announcement_title', e.target.value)}/></label>
+            <label className="span-2">نص الإعلان<textarea maxLength={1000} rows={3} value={text('announcement_body')} onChange={e => setContent('announcement_body', e.target.value)}/></label>
+        </div></section>
+        <section className="form-section"><h3>التواصل والتذييل</h3><div className="form-grid">
+            <label>رقم التواصل<input dir="ltr" maxLength={30} value={text('contact_phone')} placeholder="+20..." onChange={e => setContent('contact_phone', e.target.value)}/></label>
+            <label>بريد التواصل<input dir="ltr" type="email" maxLength={254} value={text('contact_email')} onChange={e => setContent('contact_email', e.target.value)}/></label>
+            <label className="span-2">نص التذييل<input maxLength={300} value={text('footer_text')} placeholder="مثال: مدرستنا — معًا في كل خطوة" onChange={e => setContent('footer_text', e.target.value)}/></label>
+        </div></section>
+        <section className="form-section"><h3>اللوجو</h3><label>صورة الشعار<input type="file" accept="image/png,image/jpeg,image/webp" onChange={async (e) => {
             const file = e.target.files?.[0];
             if (!file)
                 return;
@@ -58,5 +89,7 @@ export function SettingsForm({ settings, busy, onSave }: {
             const src = await new Promise<string>((res, rej) => { const reader = new FileReader(); reader.onload = () => res(String(reader.result)); reader.onerror = rej; reader.readAsDataURL(file); });
             setDraft({ ...draft, logo: src });
             setFileError('');
-        }}/></label>{fileError && <p className="error">{fileError}</p>}{draft.logo && <div className="actions"><img src={draft.logo} className="logo-preview" alt="اللوجو الحالي"/><button type="button" className="secondary" onClick={() => setDraft({ ...draft, logo: '' })}>إزالة اللوجو</button></div>}<button className="primary" disabled={busy}>حفظ الإعدادات</button></form>;
+        }}/></label>{fileError && <p className="error">{fileError}</p>}{draft.logo && <div className="actions"><img src={draft.logo} className="logo-preview" alt="اللوجو الحالي"/><button type="button" className="secondary" onClick={() => setDraft({ ...draft, logo: '' })}>إزالة اللوجو</button></div>}</section>
+        <button className="primary" disabled={busy}>حفظ الإعدادات</button>
+    </form>;
 }

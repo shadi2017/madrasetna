@@ -56,6 +56,17 @@ export async function account(body: Record<string, unknown>) { const { data, err
     throw Error(message);
 } if (data.error)
     throw Error(data.error); return data; }
+export async function backupAction(body: Record<string, unknown>) { if (!supabase)
+    throw Error('NOT_CONFIGURED'); const { data, error } = await supabase.functions.invoke('backup', { body }); if (error) {
+    let message = error.message;
+    try {
+        const b = await error.context.json();
+        message = b.error || message;
+    }
+    catch { }
+    throw Error(message);
+} if (data?.error)
+    throw Error(data.error); return data; }
 export async function registerStudent(v: {
     name: string;
     phone: string;

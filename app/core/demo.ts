@@ -28,11 +28,11 @@ export function demoRpc(data: Data, name: string, a: Record<string, any>) {
             entity = 'days';
         }
     }
-    else if ((name === 'save_settings' || name === 'save_settings_v2')) {
+    else if ((name === 'save_settings' || name === 'save_settings_v2' || name === 'save_settings_v3')) {
         if (next.settings.version !== a.p_version)
             throw Error('CONFLICT_REFRESH');
         before = structuredClone(next.settings);
-        Object.assign(next.settings, { login_title: a.p_login_title ?? next.settings.login_title, login_tagline: a.p_login_tagline ?? next.settings.login_tagline, name: a.p_name, slogan: a.p_slogan, verse: a.p_verse, logo: a.p_logo, version: next.settings.version + 1 });
+        Object.assign(next.settings, { login_title: a.p_login_title ?? next.settings.login_title, login_tagline: a.p_login_tagline ?? next.settings.login_tagline, content: a.p_content ?? next.settings.content ?? {}, name: a.p_name, slogan: a.p_slogan, verse: a.p_verse, logo: a.p_logo, version: next.settings.version + 1 });
         after = next.settings;
         entity = 'settings';
     }
