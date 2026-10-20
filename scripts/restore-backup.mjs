@@ -108,7 +108,14 @@ const remap = (row, keys) => {
   return copy;
 };
 
+let restoreStarted = false;
+let failed = false;
 try {
+  // Backups can contain historical grades that predate the binary-daily rule.
+  // Disable that trigger only for the duration of the restore, then enable it again.
+  const { error: beginError } = await admin.rpc('begin_restore');
+  if (beginError) throw new Error(`begin_restore: ${beginError.message}`);
+  restoreStarted = true;
   await upsert('settings', tables.settings, 'id');
   await upsert('grading', tables.grading, 'id');
   await upsert('backup_settings', tables.backup_settings, 'id');
@@ -120,6 +127,12 @@ try {
   if (withAudit) await upsert('audit_log', (tables.audit_log || []).map(row => remap(row, ['actor_id'])), 'id');
   console.log('\nRestore finished. New users were created with random passwords: reset them from the dashboard or the app recovery flow.');
 } catch (error) {
+  failed = true;
   console.error('\nRestore failed:', error.message);
-  process.exit(1);
+} finally {
+  if (restoreStarted) {
+    const { error } = await admin.rpc('end_restore');
+    if (error) console.error('Could not re-enable validation triggers:', error.message);
+  }
 }
+if (failed) process.exit(1);

@@ -48,6 +48,7 @@ React + TypeScript + Vite، مكونات Radix/Shadcn، Supabase Auth/Postgres/R
 - supabase/migrations/001_initial.sql: مخطط النسخة الأولى.
 - supabase/migrations/002_registration_grading.sql: التسجيل الذاتي والموافقة والمعادلة والترتيب وسياسات النتيجة.
 - supabase/migrations/007_backups.sql و008_dynamic_content_midnight_backup.sql: النسخ الاحتياطي والنصوص الديناميكية.
+- supabase/migrations/009_restore_support.sql: تعطيل/إعادة تفعيل حماية الدرجات الثنائية أثناء الاستعادة فقط.
 - supabase/functions/backup/index.ts: تصدير البيانات وضغطها وتشفيرها ورفعها وإشعاراتها.
 - supabase/backup-cron.sql: جدولة النسخ بعد منتصف الليل عبر pg_cron.
 - supabase/functions/manage-student/index.ts: إنشاء حساب الطالب وتغيير كلمة مروره، بعد التحقق من الأدمن.

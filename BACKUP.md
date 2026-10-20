@@ -46,6 +46,7 @@ Edge Function: backup
 -- 001 … 006 ثم:
 -- 007_backups.sql
 -- 008_dynamic_content_midnight_backup.sql
+-- 009_restore_support.sql
 ```
 
 أو باستخدام CLI:

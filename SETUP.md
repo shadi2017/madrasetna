@@ -98,7 +98,7 @@ VITE_SUPABASE_ANON_KEY=YOUR_PUBLISHABLE_OR_ANON_KEY
 - اختبر طالبًا قيد الانتظار، ثم الموافقة عليه، ثم إعلان النتائج وإخفاءها مجددًا، وكذلك مشاركة الصورة على Android وiPhone قبل الاستخدام الحقيقي.
 
 ## التحديث الأخير
-بعد 001 و002 شغّل 003_staff_publication_deadlines.sql، ثم 004_scan_publication_branding.sql، ثم 005 و006 إن وجدا، ثم 007_backups.sql و008_dynamic_content_midnight_backup.sql مرة واحدة بالترتيب. الهجرة 003 تحافظ على الأدمن الحالي كأدمن رئيسي، وتضيف المشرفين ومواعيد الالتزام والتحكم المنفصل في عرض المسابقة والمشروع. 007 و008 تضيفان النسخ الاحتياطي والنصوص الديناميكية. أعد نشر manage-student بعد التحديث، وانشر وظيفة backup وفق BACKUP.md.
+بعد 001 و002 شغّل 003_staff_publication_deadlines.sql، ثم 004_scan_publication_branding.sql، ثم 005 و006 إن وجدا، ثم 007_backups.sql و008_dynamic_content_midnight_backup.sql و009_restore_support.sql مرة واحدة بالترتيب. الهجرة 003 تحافظ على الأدمن الحالي كأدمن رئيسي، وتضيف المشرفين ومواعيد الالتزام والتحكم المنفصل في عرض المسابقة والمشروع. 007 و008 تضيفان النسخ الاحتياطي والنصوص الديناميكية، و009 تسمح باستعادة الدرجات القديمة بأمان أثناء الاستعادة فقط. أعد نشر manage-student بعد التحديث، وانشر وظيفة backup وفق BACKUP.md.
 
 الرابط الرسمي: https://shadi2017.github.io/madrasetna/
 تسجيل الطلاب: https://shadi2017.github.io/madrasetna/#register
