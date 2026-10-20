@@ -50,12 +50,26 @@ async function encryptBackup(bytes: Uint8Array, base64Key: string) {
     output.set(cipher, MAGIC.byteLength + iv.byteLength);
     return output;
 }
+function parseEmails(value: string) {
+    const seen = new Set<string>();
+    return value
+        .split(/[,;\s]+/)
+        .map(item => item.trim().toLowerCase())
+        .filter(item => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(item))
+        .filter(item => {
+            if (seen.has(item))
+                return false;
+            seen.add(item);
+            return true;
+        })
+        .slice(0, 20);
+}
 function targetStates(email = '') {
     return {
         supabase: Boolean(env('BACKUP_SUPABASE_URL') && env('BACKUP_SUPABASE_SERVICE_ROLE_KEY')),
         r2: Boolean(env('R2_ACCOUNT_ID') && env('R2_ACCESS_KEY_ID') && env('R2_SECRET_ACCESS_KEY') && env('R2_BUCKET')),
         telegram: Boolean(env('TELEGRAM_BOT_TOKEN') && env('TELEGRAM_CHAT_ID')),
-        email: Boolean(env('RESEND_API_KEY') && (email || env('BACKUP_EMAIL_TO'))),
+        email: Boolean(env('RESEND_API_KEY') && parseEmails(`${email},${env('BACKUP_EMAIL_TO') || ''}`).length),
     };
 }
 async function requireAdmin(req: Request, admin: ReturnType<typeof createClient>, url: string, anon: string) {
@@ -70,6 +84,9 @@ async function requireAdmin(req: Request, admin: ReturnType<typeof createClient>
     const { data: role, error: roleError } = await user.rpc('is_admin');
     if (roleError || role !== true)
         return reply({ error: 'ADMIN_REQUIRED' }, 403);
+    const { data: canBackup, error: permissionError } = await user.rpc('has_permission', { p_key: 'backup' });
+    if (permissionError || canBackup !== true)
+        return reply({ error: 'PERMISSION_DENIED' }, 403);
     return undefined;
 }
 async function fetchAll(client: ReturnType<typeof createClient>, table: string, order: string) {
@@ -223,15 +240,15 @@ async function notifyTelegram(filename: string, bytes: Uint8Array, contentType: 
 }
 async function notifyEmail(studyDate: string, caption: string, link: string | null, targets: Record<string, string>, recipient = '') {
     const key = env('RESEND_API_KEY');
-    const to = (recipient || env('BACKUP_EMAIL_TO')).trim();
+    const to = parseEmails(`${recipient},${env('BACKUP_EMAIL_TO') || ''}`);
     const from = env('BACKUP_EMAIL_FROM') || 'onboarding@resend.dev';
-    if (!key || !to) {
+    if (!key || !to.length) {
         targets.email = 'skipped';
         return;
     }
     try {
         const html = `<div dir="rtl" style="font-family:Tahoma,Arial,sans-serif;line-height:1.8"><h2>نسخة احتياطية — مدرستنا</h2><p>${caption}</p>${link ? `<p><a href="${link}">تحميل ملف النسخة (رابط صالح 7 أيام)</a></p>` : `<p>${String(targets.telegram).startsWith('ok') ? 'الملف متاح على تلجرام.' : 'الملف محفوظ في التخزين السحابي (R2 / Supabase).'}</p>`}<p style="color:#888;font-size:12px">هذا البريد آلي من تطبيق مدرستنا. لا تشاركه.</p></div>`;
-        const response = await fetch('https://api.resend.com/emails', { method: 'POST', headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ from, to: [to], subject: `نسخة احتياطية مدرستنا — ${studyDate}`, html }) });
+        const response = await fetch('https://api.resend.com/emails', { method: 'POST', headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ from, to, subject: `نسخة احتياطية مدرستنا — ${studyDate}`, html }) });
         targets.email = response.ok ? 'ok' : 'error:' + response.status;
     }
     catch (error) {

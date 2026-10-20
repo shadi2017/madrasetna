@@ -54,15 +54,17 @@ export function SettingsForm({ settings, busy, onSave }: {
         <section className="form-section"><h3>هوية الدراسة</h3><div className="form-grid">
             <label>اسم الدراسة<input required maxLength={100} value={draft.name} onChange={e => setDraft({ ...draft, name: e.target.value })}/></label>
             <label>الشعار النصي<input maxLength={250} value={draft.slogan} onChange={e => setDraft({ ...draft, slogan: e.target.value })}/></label>
-            <label>العام الدراسي / الفصل<input maxLength={80} value={text('academic_year')} placeholder="مثال: 2026 / 2027" onChange={e => setContent('academic_year', e.target.value)}/></label>
+            <label className="span-2">العام الدراسي / الفصل<input maxLength={80} value={text('academic_year')} placeholder="مثال: 2026 / 2027" onChange={e => setContent('academic_year', e.target.value)}/></label>
         </div></section>
         <section className="form-section"><h3>شاشة الدخول</h3><div className="form-grid">
             <label>العبارة الصغيرة<input maxLength={250} value={draft.login_tagline ?? 'كل طالب له مكان'} onChange={e => setDraft({ ...draft, login_tagline: e.target.value })}/></label>
             <label className="span-2">العنوان الرئيسي<textarea maxLength={500} rows={2} value={draft.login_title ?? 'أيام بنعيشها.\nوخطوات بنكبرها.'} onChange={e => setDraft({ ...draft, login_title: e.target.value })}/></label>
             <label className="span-2">الآية أو الوصف<textarea maxLength={1000} rows={3} value={draft.verse} onChange={e => setDraft({ ...draft, verse: e.target.value })}/></label>
-            <label>الميزة الأولى<input maxLength={100} value={text('login_feature_1', 'حضور برمز خاص')} onChange={e => setContent('login_feature_1', e.target.value)}/></label>
-            <label>الميزة الثانية<input maxLength={100} value={text('login_feature_2', 'متابعة كل طالب')} onChange={e => setContent('login_feature_2', e.target.value)}/></label>
-            <label>الميزة الثالثة<input maxLength={100} value={text('login_feature_3', 'صلاحيات واضحة')} onChange={e => setContent('login_feature_3', e.target.value)}/></label>
+            <div className="form-grid three span-2">
+                <label>الميزة الأولى<input maxLength={100} value={text('login_feature_1', 'حضور برمز خاص')} onChange={e => setContent('login_feature_1', e.target.value)}/></label>
+                <label>الميزة الثانية<input maxLength={100} value={text('login_feature_2', 'متابعة كل طالب')} onChange={e => setContent('login_feature_2', e.target.value)}/></label>
+                <label>الميزة الثالثة<input maxLength={100} value={text('login_feature_3', 'صلاحيات واضحة')} onChange={e => setContent('login_feature_3', e.target.value)}/></label>
+            </div>
         </div></section>
         <section className="form-section"><h3>لوحة التحكم</h3><div className="form-grid">
             <label className="span-2">عنوان اللوحة<input maxLength={200} value={text('dashboard_title', draft.name + ' في صورة واحدة.')} onChange={e => setContent('dashboard_title', e.target.value)}/></label>

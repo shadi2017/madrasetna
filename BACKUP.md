@@ -93,8 +93,9 @@ https://api.telegram.org/bot<TOKEN>/getUpdates
 
 1. أنشئ حساب Resend ومفتاح API.
 2. بدون دومين: استخدم `onboarding@resend.dev`، ويُسمح بالإرسال إلى **بريد صاحب الحساب فقط**.
-3. مع دومين موثّق: استخدم `backup@yourdomain.com`.
-4. احتفظ بـ API Key والبريد المستلم.
+3. مع دومين موثّق: استخدم `backup@yourdomain.com`، وبعدها يمكن الإرسال لأي عناوين.
+4. في إعدادات النسخ يمكن وضع **أكثر من بريد** مفصولًا بفاصلة أو فاصلة منقوطة (حتى 20 عنوانًا). مع `onboarding@resend.dev` لن يصل إلا لبريد صاحب الحساب؛ لتوصيل لباقي الأشخاص وثّق دومين في Resend وغيّر `BACKUP_EMAIL_FROM`.
+5. احتفظ بـ API Key والبريد المستلم.
 
 ## 6) مفتاح التشفير (مهم جدًا)
 
@@ -197,7 +198,7 @@ npm run backup:decrypt -- "madrasetna-2026-10-19.json.gz.enc" "<BASE64_KEY>"
 node scripts/decrypt-backup.mjs "madrasetna-2026-10-19.json.gz.enc" "$BACKUP_ENCRYPTION_KEY"
 ```
 
-الناتج: ملف `.json` قابل للقراءة. راجع `RECOVERY.md` لخطوات الاستعادة.
+الناتج: ملف `.json` قابل للقراءة. افتحه بـ **VS Code** أو **Notepad++** (يفضل إضافة JSON Viewer لتصفيفه) ولا تفتحه على مواقع JSON أونلاين حفاظًا على بيانات الطلاب. راجع `RECOVERY.md` لخطوات الاستعادة.
 
 ## الأمان
 

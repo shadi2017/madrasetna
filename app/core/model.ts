@@ -118,6 +118,7 @@ export type Data = {
     audit: Audit[];
     admin: boolean;
     owner?: boolean;
+    permissions?: Record<string, boolean>;
 };
 export const defaultSettings: Settings = { id: 1, name: 'مدرستنا', slogan: '', verse: '', logo: '', content: {}, version: 1, updated_at: '' };
 export const defaultContent: SiteContent = {};
@@ -130,7 +131,7 @@ export function contentBool(settings: Settings, key: keyof SiteContent) {
 }
 export const defaultConfig: ScoreConfig = { daily_max: { attendance: 10, discipline: 10, bible: 10, devotion: 10, memory: 10, phone: 10, hymns: 10, games: 10, quiz: 10 }, daily_target: 200, parts: [{ id: 'part_1', label: 'الجزء 1', max: 100 }, { id: 'part_2', label: 'الجزء 2', max: 100 }, { id: 'part_3', label: 'الجزء 3', max: 100 }], parts_target: 200, competition_max: 100, competition_target: 200, project_max: 100, project_target: 200 };
 export const defaultGrading: Grading = { id: 1, config: defaultConfig, results_published: false, version: 1, updated_at: '' };
-export const emptyData: Data = { students: [], days: [], evaluations: [], finals: [], grading: defaultGrading, results: [], settings: defaultSettings, audit: [], admin: false };
+export const emptyData: Data = { students: [], days: [], evaluations: [], finals: [], grading: defaultGrading, results: [], settings: defaultSettings, audit: [], admin: false, permissions: {} };
 export const active = (s: Student) => !s.deleted_at && s.status === 'active';
 export const round = (n: number) => Math.round((n + Number.EPSILON) * 100) / 100;
 export const factor = (earned: number, max: number, target: number) => max > 0 ? earned / max * target : 0;

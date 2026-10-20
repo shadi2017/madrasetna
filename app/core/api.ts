@@ -32,7 +32,7 @@ export function createDataLoader() {
    else if(table==='grading')data.grading=incoming[0]||emptyData.grading;
    else (data as any)[key]=all?incoming:mergeRows((data as any)[key],incoming);
   }));
-  data.admin=next.admin;data.owner=next.owner;
+  data.admin=next.admin;data.owner=next.owner;data.permissions=next.permissions||{};
   // A publication change can alter masked fields even when the final score row didn't change.
   if(!next.admin && !reset && changed(before?.grading,next.grading))data.finals=await rpc('get_final_scores',{});
   if(next.admin)data.results=rankings(data);

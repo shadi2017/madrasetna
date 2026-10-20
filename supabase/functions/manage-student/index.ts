@@ -39,7 +39,8 @@ Deno.serve(async req => {
   return reply({ok:true});
  }
  if(b.action==='create'){
-
+  const {data:canCreate,error:permissionError}=await user.rpc('has_permission',{p_key:'students'});
+  if(permissionError||canCreate!==true)return reply({error:'PERMISSION_DENIED'},403);
   if(!/^[a-z0-9_]{3,32}$/.test(b.username||'')||typeof b.name!=='string'||b.name.trim().length<2||b.name.length>100||!/^\+?[0-9]{8,15}$/.test(b.phone||''))return reply({error:'INVALID_STUDENT'},400);
   const {data:created,error}=await admin.auth.admin.createUser({email:b.username+'@students.invalid',password:b.password,email_confirm:true});
   if(error)return reply({error:'USERNAME_EXISTS_OR_INVALID'},409);
